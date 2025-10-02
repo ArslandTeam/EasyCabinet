@@ -1,0 +1,38 @@
+use sea_orm::entity::prelude::*;
+
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+#[sea_orm(table_name = "User")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i32,
+    pub uuid: Option<String>,
+    pub email: String,
+    pub login: String,
+    pub password: String,
+    #[sea_orm(column_name = "resetToken")]
+    pub reset_token: Option<String>,
+    #[sea_orm(column_name = "accessToken")]
+    pub access_token: Option<String>,
+    #[sea_orm(column_name = "serverId")]
+    pub server_id: Option<String>,
+    #[sea_orm(column_name = "skinHash")]
+    pub skin_hash: Option<String>,
+    #[sea_orm(column_name = "capeHash")]
+    pub cape_hash: Option<String>,
+    #[sea_orm(column_name = "isAlex")]
+    pub is_alex: Option<bool>,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    // #[sea_orm(has_many = "super::users::Entity")]
+    // Users,
+}
+
+// impl Related<super::users::Entity> for Entity {
+//     fn to() -> RelationDef {
+//         Relation::Users.def()
+//     }
+// }
+
+impl ActiveModelBehavior for ActiveModel {}

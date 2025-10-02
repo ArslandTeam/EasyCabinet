@@ -2,8 +2,8 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct LoginDTO {
-    login: String,
-    password: String,
+    pub login: String,
+    pub password: String,
 }
 
 #[derive(Deserialize)]
