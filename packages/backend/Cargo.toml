@@ -18,3 +18,4 @@ migration = { path = "./migration" }
 dotenvy = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+bcrypt = "0.17.1"
