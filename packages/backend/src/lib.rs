@@ -43,6 +43,7 @@ fn init_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(|| async { Json(json!({"status": "ok"})) }))
         .route("/auth/login", post(auth::controller::login))
+        .route("/auth/register", post(auth::controller::register))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }
