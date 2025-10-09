@@ -3,7 +3,6 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 pub struct LoginDTO {
     pub login: String,
-    pub email: String,
     pub password: String,
 }
 

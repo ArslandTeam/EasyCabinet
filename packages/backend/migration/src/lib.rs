@@ -5,7 +5,7 @@ pub struct Migrator;
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![Box::new(m20250914_142509_user::Migration)]
+        vec![Box::new(m20250914_142509_users::Migration)]
     }
 }
-mod m20250914_142509_user;
+mod m20250914_142509_users;

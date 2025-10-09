@@ -1,12 +1,14 @@
 use axum::{
     Json, Router,
-    http::StatusCode,
+    http::{HeaderValue, StatusCode},
     routing::{get, post},
 };
+use http::{Method, header};
+use migration::{Migrator, MigratorTrait};
 use sea_orm::{Database, DatabaseConnection};
 use serde_json::json;
 use std::env;
-use tower_http::trace::TraceLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::EnvFilter;
 mod auth;
 mod entities;
@@ -30,6 +32,7 @@ pub async fn start_backend() {
     let conn = Database::connect(db_url)
         .await
         .expect("Database connection failed");
+    Migrator::up(&conn, None).await.unwrap();
 
     let state = AppState { conn };
 
@@ -40,11 +43,20 @@ pub async fn start_backend() {
 }
 
 fn init_router(state: AppState) -> Router {
+    let frontend = env::var("FRONTEND_URL").expect("FRONTEND_URL key not set in .env");
+
     Router::new()
         .route("/", get(|| async { Json(json!({"status": "ok"})) }))
         .route("/auth/login", post(auth::controller::login))
         .route("/auth/register", post(auth::controller::register))
         .layer(TraceLayer::new_for_http())
+        .layer(
+            CorsLayer::new()
+                .allow_origin(frontend.parse::<HeaderValue>().unwrap())
+                .allow_methods([Method::POST, Method::GET, Method::PUT, Method::OPTIONS])
+                .allow_headers([header::CONTENT_TYPE, header::ACCEPT])
+                .allow_credentials(true),
+        )
         .with_state(state)
 }
 

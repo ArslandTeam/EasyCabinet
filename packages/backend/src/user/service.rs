@@ -12,7 +12,6 @@ pub async fn find_user(
 ) -> Result<Option<users::Model>, DbErr> {
     users::Entity::find()
         .filter(users::Column::Login.eq(&data.login))
-        .filter(users::Column::Email.eq(&data.email))
         .one(db)
         .await
 }

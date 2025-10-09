@@ -378,6 +378,7 @@ dependencies = [
  "axum-extra",
  "bcrypt",
  "dotenvy",
+ "http",
  "jsonwebtoken",
  "migration",
  "moka",

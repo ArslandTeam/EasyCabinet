@@ -12,39 +12,39 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(User::Table)
+                    .table(Users::Table)
                     .if_not_exists()
-                    .col(pk_auto(User::Id))
+                    .col(pk_auto(Users::Id))
                     .col(
-                        ColumnDef::new(User::Uuid)
+                        ColumnDef::new(Users::Uuid)
                             .string_len(36)
                             .unique_key()
                             .null(),
                     )
                     .col(
-                        ColumnDef::new(User::Email)
+                        ColumnDef::new(Users::Email)
                             .string_len(255)
                             .unique_key()
                             .not_null(),
                     )
                     .col(
-                        ColumnDef::new(User::Login)
+                        ColumnDef::new(Users::Login)
                             .string_len(255)
                             .unique_key()
                             .not_null(),
                     )
-                    .col(ColumnDef::new(User::Password).string_len(60).not_null())
+                    .col(ColumnDef::new(Users::Password).string_len(60).not_null())
                     .col(
-                        ColumnDef::new(User::ResetToken)
+                        ColumnDef::new(Users::ResetToken)
                             .string_len(255)
                             .unique_key()
                             .null(),
                     )
-                    .col(ColumnDef::new(User::AccessToken).string_len(255).null())
-                    .col(ColumnDef::new(User::ServerId).string_len(255).null())
-                    .col(ColumnDef::new(User::SkinHash).string_len(255).null())
-                    .col(ColumnDef::new(User::CapeHash).string_len(255).null())
-                    .col(ColumnDef::new(User::IsAlex).boolean().null())
+                    .col(ColumnDef::new(Users::AccessToken).string_len(255).null())
+                    .col(ColumnDef::new(Users::ServerId).string_len(255).null())
+                    .col(ColumnDef::new(Users::SkinHash).string_len(255).null())
+                    .col(ColumnDef::new(Users::CapeHash).string_len(255).null())
+                    .col(ColumnDef::new(Users::IsAlex).boolean().null())
                     .to_owned(),
             )
             .await
@@ -55,13 +55,13 @@ impl MigrationTrait for Migration {
         // todo!();
 
         manager
-            .drop_table(Table::drop().table(User::Table).to_owned())
+            .drop_table(Table::drop().table(Users::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum User {
+enum Users {
     Table,
     #[sea_orm(iden = "id")]
     Id,
