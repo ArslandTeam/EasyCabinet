@@ -1,10 +1,14 @@
 use crate::{
     BackendError,
-    auth::dto::{LoginDTO, RegisterDTO},
+    auth::{
+        dto::{LoginDTO, RegisterDTO},
+        jwt,
+    },
     entities::users,
     user::service,
 };
 use bcrypt::{BcryptError, hash, verify};
+use jsonwebtoken::{EncodingKey, Header, encode};
 use sea_orm::DatabaseConnection;
 
 pub async fn verify_auth(
@@ -44,6 +48,15 @@ pub async fn register(db: &DatabaseConnection, data: RegisterDTO) -> Result<(), 
         .map_err(|_| BackendError::InternalError)?;
 
     Ok(())
+}
+
+// TODO надо EncodingKey инициализировать в auth/jwt и задать время жизни токена
+fn create_access_token(user: jwt::JwtPayload) -> Result<String, jsonwebtoken::errors::Error> {
+    encode(
+        &Header::default(),
+        &user,
+        &EncodingKey::from_secret("secret".as_ref()),
+    )
 }
 
 fn generate_hash_password(password: String) -> String {
