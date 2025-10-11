@@ -20,3 +20,4 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bcrypt = "0.17.1"
 http = "1"
+uuid = { version = "1.18", features = ["v4"] }

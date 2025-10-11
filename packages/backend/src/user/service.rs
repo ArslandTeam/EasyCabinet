@@ -21,6 +21,7 @@ pub async fn create_user(
     data: RegisterDTO,
 ) -> Result<InsertResult<users::ActiveModel>, DbErr> {
     let user = users::ActiveModel {
+        uuid: ActiveValue::Set(Some(uuid::Uuid::new_v4().to_string())),
         login: ActiveValue::Set(data.login),
         password: ActiveValue::Set(data.password),
         email: ActiveValue::Set(data.email),

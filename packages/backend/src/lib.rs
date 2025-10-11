@@ -5,6 +5,7 @@ use axum::{
 };
 use http::{Method, header};
 use migration::{Migrator, MigratorTrait};
+use moka::future::Cache;
 use sea_orm::{Database, DatabaseConnection};
 use serde_json::json;
 use std::env;
@@ -34,7 +35,9 @@ pub async fn start_backend() {
         .expect("Database connection failed");
     Migrator::up(&conn, None).await.unwrap();
 
-    let state = AppState { conn };
+    let cache = Cache::builder().max_capacity(1000).build();
+
+    let state = AppState { conn, cache };
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}"))
         .await
@@ -63,6 +66,7 @@ fn init_router(state: AppState) -> Router {
 #[derive(Clone)]
 struct AppState {
     conn: DatabaseConnection,
+    cache: Cache<String, String>,
 }
 
 #[derive(Debug)]
@@ -76,7 +80,7 @@ impl axum::response::IntoResponse for BackendError {
     fn into_response(self) -> axum::response::Response {
         match self {
             BackendError::BadRequest(msg) => {
-                (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response()
+                (StatusCode::BAD_REQUEST, Json(json!({"message": msg}))).into_response()
             }
             BackendError::InternalError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }
