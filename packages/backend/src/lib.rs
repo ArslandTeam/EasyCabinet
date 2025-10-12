@@ -1,8 +1,10 @@
 use axum::{
     Json, Router,
+    extract::FromRef,
     http::{HeaderValue, StatusCode},
     routing::{get, post},
 };
+use axum_extra::extract::cookie::Key;
 use http::{Method, header};
 use migration::{Migrator, MigratorTrait};
 use moka::future::Cache;
@@ -35,9 +37,18 @@ pub async fn start_backend() {
         .expect("Database connection failed");
     Migrator::up(&conn, None).await.unwrap();
 
-    let cache = Cache::builder().max_capacity(1000).build();
+    let cache = Cache::builder()
+        .max_capacity(1000)
+        .time_to_live(std::time::Duration::from_secs(2592000))
+        .build();
 
-    let state = AppState { conn, cache };
+    let key = Key::from(
+        env::var("COOKIES_SECRET")
+            .expect("COOKIES_SECRET key not set in .env")
+            .as_bytes(),
+    );
+
+    let state = AppState { conn, cache, key };
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}"))
         .await
@@ -52,12 +63,19 @@ fn init_router(state: AppState) -> Router {
         .route("/", get(|| async { Json(json!({"status": "ok"})) }))
         .route("/auth/login", post(auth::controller::login))
         .route("/auth/register", post(auth::controller::register))
+        .route("/auth/refresh", post(auth::controller::refresh))
+        .route("/auth/logout", post(auth::controller::logout))
         .layer(TraceLayer::new_for_http())
         .layer(
             CorsLayer::new()
                 .allow_origin(frontend.parse::<HeaderValue>().unwrap())
                 .allow_methods([Method::POST, Method::GET, Method::PUT, Method::OPTIONS])
-                .allow_headers([header::CONTENT_TYPE, header::ACCEPT])
+                .allow_headers([
+                    header::CONTENT_TYPE,
+                    header::ACCEPT,
+                    header::AUTHORIZATION,
+                    header::COOKIE,
+                ])
                 .allow_credentials(true),
         )
         .with_state(state)
@@ -67,6 +85,14 @@ fn init_router(state: AppState) -> Router {
 struct AppState {
     conn: DatabaseConnection,
     cache: Cache<String, String>,
+    key: Key,
+}
+
+// INFO эта реализация сообщает `SignedCookieJar`, как получить доступ к ключу из нашего состояния
+impl FromRef<AppState> for Key {
+    fn from_ref(state: &AppState) -> Self {
+        state.key.clone()
+    }
 }
 
 #[derive(Debug)]
