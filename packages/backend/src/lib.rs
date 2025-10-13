@@ -13,8 +13,10 @@ use serde_json::json;
 use std::env;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::EnvFilter;
+mod assets;
 mod auth;
 mod entities;
+mod files;
 mod user;
 
 #[tokio::main]

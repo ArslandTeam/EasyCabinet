@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+// В функцию validate нужно будет сделать проверку на валидность токена через assert_eq!
 // async fn validate(payload: JwtPayload) {}
 
 #[derive(Deserialize, Serialize)]

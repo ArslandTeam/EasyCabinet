@@ -1,10 +1,12 @@
 use crate::{
+    BackendError,
     auth::dto::{LoginDTO, RegisterDTO},
     entities::users,
 };
 use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, InsertResult, QueryFilter,
 };
+use serde::Serialize;
 
 pub async fn find_user(
     db: &DatabaseConnection,
@@ -29,4 +31,36 @@ pub async fn create_user(
     };
 
     users::Entity::insert(user).exec(db).await
+}
+
+pub async fn get_profile(
+    db: &DatabaseConnection,
+    uuid: String,
+) -> Result<ProfileDTO, BackendError> {
+    let user = users::Entity::find()
+        .filter(users::Column::Uuid.eq(uuid))
+        .one(db)
+        .await
+        .map_err(|_| BackendError::InternalError)?
+        .ok_or(BackendError::BadRequest("User not found".to_string()))?;
+
+    Ok(get_skin_data(user))
+}
+
+fn get_skin_data(user: users::Model) -> ProfileDTO {
+    ProfileDTO {
+        is_alex: user.is_alex,
+        skin_url: user.skin_hash,
+        cape_url: user.cape_hash,
+    }
+}
+
+#[derive(Serialize)]
+pub struct ProfileDTO {
+    #[serde(rename = "isAlex")]
+    pub is_alex: Option<bool>,
+    #[serde(rename = "skinUrl")]
+    pub skin_url: Option<String>,
+    #[serde(rename = "capeUrl")]
+    pub cape_url: Option<String>,
 }
