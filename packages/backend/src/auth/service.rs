@@ -46,13 +46,7 @@ pub async fn login(
     data: LoginDTO,
 ) -> Result<(String, String), BackendError> {
     let user = verify_auth(db, data).await?;
-    let jwt_payload = jwt::JwtPayload {
-        uuid: user.uuid.unwrap(),
-        login: user.login,
-        iat: 0,
-        exp: 0,
-    };
-    generate_tokens_pair(cache, jwt_payload)
+    generate_tokens_pair(cache, user.uuid.unwrap(), user.login)
         .await
         .map_err(|_| BackendError::InternalError)
 }
@@ -68,7 +62,7 @@ pub async fn register(db: &DatabaseConnection, data: RegisterDTO) -> Result<(), 
 
     service::create_user(db, user)
         .await
-        .map_err(|_| BackendError::BadRequest(("Такой юзер есть или почта").to_string()))?;
+        .map_err(|_| BackendError::BadRequest("User already exists".to_string()))?;
 
     Ok(())
 }
@@ -78,7 +72,7 @@ pub async fn refresh(
     refresh_token: String,
 ) -> Result<(String, String), BackendError> {
     let user = check_and_remove_token(cache, refresh_token).await?;
-    generate_tokens_pair(cache, user)
+    generate_tokens_pair(cache, user.uuid, user.login)
         .await
         .map_err(|_| BackendError::InternalError)
 }
@@ -87,23 +81,30 @@ pub async fn logout(cache: &Cache<String, String>, refresh_token: String) {
     let _ = check_and_remove_token(cache, refresh_token).await;
 }
 
-// TODO надо EncodingKey инициализировать в auth/jwt
-fn create_access_token(user: JwtPayload) -> Result<String, jsonwebtoken::errors::Error> {
+fn create_access_token(uuid: String, login: String) -> Result<String, jsonwebtoken::errors::Error> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
 
-    let payload = jwt::JwtPayload {
-        uuid: user.uuid,
-        login: user.login,
+    let claims = jwt::JwtPayload {
+        uuid: uuid,
+        login: login,
         iat: now,
-        exp: now + 3600,
+        exp: now
+            + env::var("JWT_EXPIRES_IN")
+                .unwrap()
+                .parse::<u64>()
+                .expect("JWT_EXPIRES_IN key not set in .env"),
     };
     encode(
         &Header::default(),
-        &payload,
-        &EncodingKey::from_secret("secret".as_ref()),
+        &claims,
+        &EncodingKey::from_secret(
+            env::var("JWT_SECRET")
+                .expect("JWT_SECRET key not set in .env")
+                .as_ref(),
+        ),
     )
 }
 
@@ -118,9 +119,10 @@ async fn create_refresh_token(cache: &Cache<String, String>, access_token: Strin
 
 async fn generate_tokens_pair(
     cache: &Cache<String, String>,
-    user: JwtPayload,
+    uuid: String,
+    login: String,
 ) -> Result<(String, String), jsonwebtoken::errors::Error> {
-    let access_token = create_access_token(user)?;
+    let access_token = create_access_token(uuid, login)?;
     let refresh_token = create_refresh_token(cache, access_token.clone()).await;
     Ok((access_token, refresh_token))
 }
@@ -131,7 +133,12 @@ pub fn set_refresh_token_cookie(jar: SignedCookieJar, refresh_token: String) -> 
         .http_only(true)
         .same_site(SameSite::Lax)
         .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
-        .max_age(Duration::days(30))
+        .max_age(Duration::seconds(
+            env::var("COOKIE_EXPIRES_IN")
+                .unwrap()
+                .parse()
+                .unwrap_or(2592000),
+        ))
         .build();
 
     jar.add(cookie)
@@ -162,11 +169,15 @@ async fn check_and_remove_token(
 ) -> Result<JwtPayload, BackendError> {
     let access_token = get_refresh_token_data(cache, refresh_token.clone())
         .await
-        .ok_or(BackendError::BadRequest("Токен не найден".to_string()))?;
+        .ok_or(BackendError::BadRequest("Token not found".to_string()))?;
 
     let token = decode::<JwtPayload>(
         &access_token,
-        &DecodingKey::from_secret("secret".as_ref()),
+        &DecodingKey::from_secret(
+            env::var("JWT_SECRET")
+                .expect("JWT_SECRET key not set in .env")
+                .as_ref(),
+        ),
         &Validation::default(),
     )
     .map_err(|_| BackendError::BadRequest("Invalid token".to_string()))?;
