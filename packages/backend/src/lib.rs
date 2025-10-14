@@ -63,7 +63,7 @@ fn init_router(state: AppState) -> Router {
         .route("/auth/register", post(api::auth::controller::register))
         .route("/auth/refresh", post(api::auth::controller::refresh))
         .route("/auth/logout", post(api::auth::controller::logout))
-        // .route("/user", get(api::user::controller::get_profile))
+        .route("/users", get(api::user::controller::get_profile))
         .layer(TraceLayer::new_for_http())
         .layer(
             CorsLayer::new()

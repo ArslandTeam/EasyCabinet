@@ -59,6 +59,5 @@ pub async fn logout(
     }
 
     let jar = jar.remove(Cookie::from("refreshToken"));
-
     Ok((StatusCode::OK, jar))
 }

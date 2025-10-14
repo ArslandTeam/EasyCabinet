@@ -50,11 +50,18 @@ pub async fn get_profile(
     Ok(get_skin_data(user))
 }
 
+// TODO может тоже придётся переписать и заодно заменить AssetType на что то другое
 fn get_skin_data(user: users::Model) -> ProfileDTO {
     ProfileDTO {
         is_alex: user.is_alex,
-        skin_url: assets::service::format_url(AssetType::Skin, &user.skin_hash.as_deref().unwrap()),
-        cape_url: assets::service::format_url(AssetType::Cape, &user.cape_hash.as_deref().unwrap()),
+        skin_url: user
+            .skin_hash
+            .as_deref()
+            .and_then(|hash| assets::service::format_url(AssetType::Skin, hash)),
+        cape_url: user
+            .cape_hash
+            .as_deref()
+            .and_then(|hash| assets::service::format_url(AssetType::Cape, hash)),
     }
 }
 
