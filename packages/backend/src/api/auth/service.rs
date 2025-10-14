@@ -5,12 +5,12 @@ use std::{
 
 use crate::{
     BackendError,
-    auth::{
+    api::auth::{
         dto::{LoginDTO, RegisterDTO},
         jwt::{self, JwtPayload},
     },
-    entities::users,
-    user::service,
+    api::entities::users,
+    api::user::service,
 };
 use axum_extra::extract::{
     SignedCookieJar,

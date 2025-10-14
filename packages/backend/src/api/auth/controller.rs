@@ -1,7 +1,7 @@
 use crate::{
     AppState, BackendError,
-    auth::dto::{LoginDTO, RegisterDTO},
-    auth::service,
+    api::auth::dto::{LoginDTO, RegisterDTO},
+    api::auth::service,
 };
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::extract::{SignedCookieJar, cookie::Cookie};

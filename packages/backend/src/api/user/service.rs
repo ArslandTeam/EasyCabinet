@@ -1,7 +1,10 @@
 use crate::{
     BackendError,
-    auth::dto::{LoginDTO, RegisterDTO},
-    entities::users,
+    api::{
+        assets::{self, service::AssetType},
+        auth::dto::{LoginDTO, RegisterDTO},
+        entities::users,
+    },
 };
 use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, InsertResult, QueryFilter,
@@ -50,8 +53,8 @@ pub async fn get_profile(
 fn get_skin_data(user: users::Model) -> ProfileDTO {
     ProfileDTO {
         is_alex: user.is_alex,
-        skin_url: user.skin_hash,
-        cape_url: user.cape_hash,
+        skin_url: assets::service::format_url(AssetType::Skin, &user.skin_hash.as_deref().unwrap()),
+        cape_url: assets::service::format_url(AssetType::Cape, &user.cape_hash.as_deref().unwrap()),
     }
 }
 

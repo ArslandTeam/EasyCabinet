@@ -13,11 +13,7 @@ use serde_json::json;
 use std::env;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::EnvFilter;
-mod assets;
-mod auth;
-mod entities;
-mod files;
-mod user;
+mod api;
 
 #[tokio::main]
 pub async fn start_backend() {
@@ -63,10 +59,11 @@ fn init_router(state: AppState) -> Router {
 
     Router::new()
         .route("/", get(|| async { Json(json!({"status": "ok"})) }))
-        .route("/auth/login", post(auth::controller::login))
-        .route("/auth/register", post(auth::controller::register))
-        .route("/auth/refresh", post(auth::controller::refresh))
-        .route("/auth/logout", post(auth::controller::logout))
+        .route("/auth/login", post(api::auth::controller::login))
+        .route("/auth/register", post(api::auth::controller::register))
+        .route("/auth/refresh", post(api::auth::controller::refresh))
+        .route("/auth/logout", post(api::auth::controller::logout))
+        // .route("/user", get(api::user::controller::get_profile))
         .layer(TraceLayer::new_for_http())
         .layer(
             CorsLayer::new()

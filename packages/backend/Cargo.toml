@@ -22,3 +22,4 @@ bcrypt = "0.17.1"
 http = "1"
 uuid = { version = "1.18", features = ["v4"] }
 time = "0.3"
+sha2 = "0.10"
