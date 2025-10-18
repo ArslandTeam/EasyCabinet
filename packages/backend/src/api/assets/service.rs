@@ -40,18 +40,19 @@ pub async fn upload_image(asset_type: AssetType, image: &[u8]) -> Result<String,
 }
 
 async fn verify_asset(asset_type: AssetType, image: &[u8]) -> Result<(), BackendError> {
-    let image_reader = ImageReader::new(Cursor::new(image))
+    let reader = ImageReader::new(Cursor::new(image))
         .with_guessed_format()
-        .expect("Cursor io never fails")
-        .format()
-        .ok_or_else(|| BackendError::BadRequest(format!("Unknown {:#?} format", asset_type)))
-        .unwrap();
+        .map_err(|_| BackendError::BadRequest(format!("Failed to read {asset_type:?}")))?;
 
-    match image_reader {
+    let format = reader.format().ok_or_else(|| {
+        BackendError::BadRequest(format!("Unknown {asset_type:?} format (could not guess)"))
+    })?;
+
+    match format {
         ImageFormat::Png | ImageFormat::Jpeg => Ok(()),
         _ => Err(BackendError::BadRequest(format!(
-            "Invalid {:#?} format: expected PNG or JPEG",
-            asset_type
+            "Invalid {asset_type:?} format: expected PNG or JPEG, got {:?}",
+            format
         ))),
     }
 }

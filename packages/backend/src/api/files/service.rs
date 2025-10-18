@@ -36,5 +36,5 @@ async fn save_image_to_disk(file: &[u8], path: &str) -> Result<(), BackendError>
 
 fn generate_hash(buffer: &[u8]) -> String {
     let hash = Sha256::digest(buffer);
-    format!("{:x}", &hash)
+    format!("{:x}", hash)
 }

@@ -19,7 +19,7 @@ pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCoo
         .http_only(true)
         .same_site(SameSite::Lax)
         .secure(std::env::var("COOKIE_SECURE").unwrap_or_default() == "true")
-        .max_age(time::Duration::seconds(0))
+        .max_age(time::Duration::seconds(900))
         .build();
 
     jar.add(cookie)

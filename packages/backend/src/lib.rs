@@ -2,7 +2,7 @@ use axum::{
     Json, Router,
     extract::FromRef,
     http::{HeaderValue, StatusCode},
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use axum_extra::extract::cookie::Key;
 use http::{Method, header};
@@ -64,6 +64,11 @@ fn init_router(state: AppState) -> Router {
         .route("/auth/refresh", post(api::auth::controller::refresh))
         .route("/auth/logout", post(api::auth::controller::logout))
         .route("/users", get(api::user::controller::get_profile))
+        .route("/users", put(api::user::controller::update_profile))
+        .nest_service(
+            "/uploads",
+            tower_http::services::ServeDir::new(std::path::Path::new("uploads")),
+        )
         .layer(TraceLayer::new_for_http())
         .layer(
             CorsLayer::new()

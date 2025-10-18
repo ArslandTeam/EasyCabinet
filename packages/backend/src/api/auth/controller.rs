@@ -53,7 +53,9 @@ pub async fn logout(
         service::logout(&state.cache, refresh_token).await;
     }
 
-    let jar = jar.remove(Cookie::from("refreshToken"));
+    let jar = jar
+        .remove(Cookie::from("refreshToken"))
+        .remove(Cookie::build("accessToken").path("/").build());
 
     Ok((StatusCode::OK, jar))
 }

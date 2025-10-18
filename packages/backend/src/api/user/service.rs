@@ -1,14 +1,15 @@
 use crate::{
     BackendError,
     api::{
-        assets::{
-            self,
-            service::{AssetType, upload_image},
+        assets::{self, service::AssetType},
+        auth::{
+            dto::{LoginDTO, RegisterDTO},
+            jwt::JwtPayload,
         },
-        auth::dto::{LoginDTO, RegisterDTO},
         entities::users,
     },
 };
+use migration::Expr;
 use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, InsertResult, QueryFilter,
 };
@@ -68,14 +69,31 @@ fn get_skin_data(user: users::Model) -> ProfileDTO {
     }
 }
 
-// pub async fn update_profile(
-//     user: users::Model,
-//     profile: ProfileDTO,
-//     skin: Option<&[u8]>,
-//     cape: Option<&[u8]>,
-// ) -> Result<(), BackendError> {
+// FIX это пиздец я потом исправлю
+pub async fn update_profile(
+    user: JwtPayload,
+    db: &DatabaseConnection,
+    skin: Option<&[u8]>,
+    cape: Option<&[u8]>,
+) -> Result<(), BackendError> {
+    let mut update_user = users::Entity::update_many().filter(users::Column::Login.eq(user.login));
 
-// }
+    if let Some(data) = skin {
+        let hash = assets::service::upload_image(AssetType::Skin, data).await?;
+        update_user = update_user.col_expr(users::Column::SkinHash, Expr::value(hash));
+    }
+
+    if let Some(data) = cape {
+        let hash = assets::service::upload_image(AssetType::Cape, data).await?;
+        update_user = update_user.col_expr(users::Column::CapeHash, Expr::value(hash));
+    }
+
+    update_user
+        .exec(db)
+        .await
+        .map_err(|_| BackendError::InternalError)?;
+    Ok(())
+}
 
 #[derive(Serialize)]
 pub struct ProfileDTO {
