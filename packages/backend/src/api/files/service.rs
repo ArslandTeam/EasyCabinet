@@ -1,3 +1,4 @@
+// TODO переписать
 use crate::BackendError;
 use sha2::{Digest, Sha256};
 use std::{env, path::PathBuf};
@@ -12,7 +13,7 @@ fn format_path(scope: &str, hash: &str) -> String {
     format!("{scope}/{prefix}/{hash}")
 }
 
-async fn save_file(file: &[u8], scope: &str) -> Result<String, BackendError> {
+pub async fn save_file(file: &[u8], scope: &str) -> Result<String, BackendError> {
     let hash = generate_hash(file);
     let path = format_path(scope, &hash);
     save_image_to_disk(file, &path).await?;

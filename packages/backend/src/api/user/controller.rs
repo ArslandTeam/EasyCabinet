@@ -1,4 +1,8 @@
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Multipart, State},
+    response::IntoResponse,
+};
 use axum_extra::extract::SignedCookieJar;
 
 use crate::{
@@ -14,3 +18,16 @@ pub async fn get_profile(
     let profile = service::get_profile(&state.conn, user.uuid).await?;
     Ok(Json(profile))
 }
+
+// TODO хуйня на постной масле. Надо логику на js переосмыслить и переписать
+// pub async fn update_profile(
+//     State(state): State<AppState>,
+//     jar: SignedCookieJar,
+//     mut multipart: Multipart,
+// ) -> Result<impl IntoResponse, BackendError> {
+//     while let Some(mut field) = multipart.next_field().await.unwrap() {
+//         let name = field.name().unwrap().to_string();
+//         let data = field.bytes().await.unwrap();
+//     }
+//     Ok(())
+// }

@@ -1,11 +1,12 @@
 use crate::{
     AppState, BackendError,
-    api::auth::dto::{LoginDTO, RegisterDTO},
-    api::auth::service,
+    api::auth::{
+        dto::{LoginDTO, RegisterDTO},
+        jwt, service,
+    },
 };
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::extract::{SignedCookieJar, cookie::Cookie};
-use serde_json::json;
 
 pub async fn login(
     State(state): State<AppState>,
@@ -14,11 +15,8 @@ pub async fn login(
 ) -> Result<impl IntoResponse, BackendError> {
     let (access_token, refresh_token) = service::login(&state.conn, &state.cache, payload).await?;
     let jar = service::set_refresh_token_cookie(jar, refresh_token);
-    Ok((
-        StatusCode::OK,
-        jar,
-        Json(json!({"accessToken": access_token})),
-    ))
+    let jar = jwt::set_access_token(jar, access_token.clone());
+    Ok((StatusCode::OK, jar))
 }
 
 pub async fn register(
@@ -42,11 +40,8 @@ pub async fn refresh(
     let (access_token, refresh_token) = service::refresh(&state.cache, old_refresh_token).await?;
 
     let jar = service::set_refresh_token_cookie(jar, refresh_token);
-    Ok((
-        StatusCode::OK,
-        jar,
-        Json(json!({"accessToken": access_token})),
-    ))
+    let jar = jwt::set_access_token(jar, access_token.clone());
+    Ok((StatusCode::OK, jar))
 }
 
 // TODO может быть придётся переписать
@@ -59,5 +54,6 @@ pub async fn logout(
     }
 
     let jar = jar.remove(Cookie::from("refreshToken"));
+
     Ok((StatusCode::OK, jar))
 }

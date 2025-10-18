@@ -1,5 +1,5 @@
 use crate::BackendError;
-use axum_extra::extract::cookie::SignedCookieJar;
+use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar};
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 // В функцию validate нужно будет сделать проверку на валидность токена через assert_eq!
@@ -11,6 +11,18 @@ pub struct JwtPayload {
     pub login: String,
     pub iat: u64,
     pub exp: u64,
+}
+
+pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCookieJar {
+    let cookie = Cookie::build(("accessToken", access_token))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .secure(std::env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+        .max_age(time::Duration::seconds(0))
+        .build();
+
+    jar.add(cookie)
 }
 
 // INFO тут мы извлекаем access token из куки

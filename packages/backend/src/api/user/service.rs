@@ -1,7 +1,10 @@
 use crate::{
     BackendError,
     api::{
-        assets::{self, service::AssetType},
+        assets::{
+            self,
+            service::{AssetType, upload_image},
+        },
         auth::dto::{LoginDTO, RegisterDTO},
         entities::users,
     },
@@ -64,6 +67,15 @@ fn get_skin_data(user: users::Model) -> ProfileDTO {
             .and_then(|hash| assets::service::format_url(AssetType::Cape, hash)),
     }
 }
+
+// pub async fn update_profile(
+//     user: users::Model,
+//     profile: ProfileDTO,
+//     skin: Option<&[u8]>,
+//     cape: Option<&[u8]>,
+// ) -> Result<(), BackendError> {
+
+// }
 
 #[derive(Serialize)]
 pub struct ProfileDTO {
