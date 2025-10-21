@@ -1,49 +1,37 @@
+use crate::{
+    BackendError, api,
+    api::auth::jwt::{self, JwtPayload},
+};
+use axum_extra::extract as cookie_manager;
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use moka::future::Cache;
+use sea_orm::DatabaseConnection;
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{
-    BackendError,
-    api::auth::{
-        dto::{LoginDTO, RegisterDTO},
-        jwt::{self, JwtPayload},
-    },
-    api::entities::users,
-    api::user::service,
-};
-use axum_extra::extract::{
-    SignedCookieJar,
-    cookie::{Cookie, SameSite},
-};
-use bcrypt::{BcryptError, hash, verify};
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use moka::future::Cache;
-use sea_orm::DatabaseConnection;
-use time::Duration;
-
 pub async fn verify_auth(
     db: &DatabaseConnection,
-    data: LoginDTO,
-) -> Result<users::Model, BackendError> {
-    let user = service::find_user(&db, &data)
+    data: api::auth::dto::LoginDTO,
+) -> Result<api::entities::users::Model, BackendError> {
+    let user = api::user::service::find_user(&db, &data)
         .await
         .map_err(|_| BackendError::InternalError)?;
 
     match user {
         Some(user) => match check_password(data.password, &user.password) {
-            Ok(true) => Ok(user),
-            Ok(false) => Err(BackendError::BadRequest("Invalid password".to_string())),
-            Err(_) => Err(BackendError::InternalError),
+            true => Ok(user),
+            false => Err(BackendError::BadRequest("Invalid password".into())),
         },
-        None => Err(BackendError::BadRequest("User not found".to_string())),
+        None => Err(BackendError::BadRequest("User not found".into())),
     }
 }
 
 pub async fn login(
     db: &DatabaseConnection,
     cache: &Cache<String, String>,
-    data: LoginDTO,
+    data: api::auth::dto::LoginDTO,
 ) -> Result<(String, String), BackendError> {
     let user = verify_auth(db, data).await?;
     generate_tokens_pair(cache, user.uuid.unwrap(), user.login)
@@ -51,18 +39,21 @@ pub async fn login(
         .map_err(|_| BackendError::InternalError)
 }
 
-pub async fn register(db: &DatabaseConnection, data: RegisterDTO) -> Result<(), BackendError> {
+pub async fn register(
+    db: &DatabaseConnection,
+    data: api::auth::dto::RegisterDTO,
+) -> Result<(), BackendError> {
     let hash_password = generate_hash_password(data.password);
 
-    let user = RegisterDTO {
+    let user = api::auth::dto::RegisterDTO {
         login: data.login,
         email: data.email,
         password: hash_password,
     };
 
-    service::create_user(db, user)
+    api::user::service::create_user(db, user)
         .await
-        .map_err(|_| BackendError::BadRequest("User already exists".to_string()))?;
+        .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
 
     Ok(())
 }
@@ -81,7 +72,7 @@ pub async fn logout(cache: &Cache<String, String>, refresh_token: String) {
     let _ = check_and_remove_token(cache, refresh_token).await;
 }
 
-fn create_access_token(uuid: String, login: String) -> Result<String, jsonwebtoken::errors::Error> {
+fn create_access_token(uuid: String, login: String) -> Result<String, BackendError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -106,6 +97,7 @@ fn create_access_token(uuid: String, login: String) -> Result<String, jsonwebtok
                 .as_ref(),
         ),
     )
+    .map_err(|_| BackendError::InternalError)
 }
 
 async fn create_refresh_token(cache: &Cache<String, String>, access_token: String) -> String {
@@ -121,19 +113,22 @@ async fn generate_tokens_pair(
     cache: &Cache<String, String>,
     uuid: String,
     login: String,
-) -> Result<(String, String), jsonwebtoken::errors::Error> {
+) -> Result<(String, String), BackendError> {
     let access_token = create_access_token(uuid, login)?;
     let refresh_token = create_refresh_token(cache, access_token.clone()).await;
     Ok((access_token, refresh_token))
 }
 
-pub fn set_refresh_token_cookie(jar: SignedCookieJar, refresh_token: String) -> SignedCookieJar {
-    let cookie = Cookie::build(("refreshToken", refresh_token))
+pub fn set_refresh_token_cookie(
+    jar: cookie_manager::SignedCookieJar,
+    refresh_token: String,
+) -> cookie_manager::SignedCookieJar {
+    let cookie = cookie_manager::cookie::Cookie::build(("refreshToken", refresh_token))
         .path("/auth")
         .http_only(true)
-        .same_site(SameSite::Lax)
+        .same_site(cookie_manager::cookie::SameSite::Lax)
         .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
-        .max_age(Duration::seconds(
+        .max_age(time::Duration::seconds(
             env::var("COOKIE_EXPIRES_IN")
                 .unwrap()
                 .parse()
@@ -169,7 +164,7 @@ async fn check_and_remove_token(
 ) -> Result<JwtPayload, BackendError> {
     let access_token = get_refresh_token_data(cache, refresh_token.clone())
         .await
-        .ok_or(BackendError::BadRequest("Token not found".to_string()))?;
+        .ok_or(BackendError::BadRequest("Token not found".into()))?;
 
     let token = decode::<JwtPayload>(
         &access_token,
@@ -180,7 +175,7 @@ async fn check_and_remove_token(
         ),
         &Validation::default(),
     )
-    .map_err(|_| BackendError::BadRequest("Invalid token".to_string()))?;
+    .map_err(|_| BackendError::BadRequest("Invalid token".into()))?;
 
     // INFO Проверка на валидность токена
     if token.claims.exp
@@ -202,9 +197,9 @@ async fn check_and_remove_token(
 }
 
 fn generate_hash_password(password: String) -> String {
-    hash(password, 10).unwrap()
+    bcrypt::hash(password, 10).expect("Error hash bcrypt")
 }
 
-fn check_password(password: String, hash: &str) -> Result<bool, BcryptError> {
-    verify(password, hash)
+fn check_password(password: String, hash: &str) -> bool {
+    bcrypt::verify(password, hash).expect("Error verify bcrypt")
 }

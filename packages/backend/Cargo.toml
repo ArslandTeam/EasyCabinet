@@ -8,7 +8,7 @@ axum = { version = "0.8.6", features = ["multipart"] }
 axum-extra = { version = "0.10", features = ["cookie", "cookie-signed"] }
 jsonwebtoken = "9"
 moka = { version = "0.12.10", features = ["future"] }
-sea-orm = { version = "1.1", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"] }
+sea-orm = { version = "1.1", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"] } # надо будет обновится потом
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }

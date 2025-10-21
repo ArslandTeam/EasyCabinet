@@ -49,7 +49,10 @@ pub async fn logout(
     State(state): State<AppState>,
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
-    if let Some(refresh_token) = jar.get("refreshToken").map(|c| c.value().to_string()) {
+    if let Some(refresh_token) = jar
+        .get("refreshToken")
+        .map(|cookie| cookie.value().to_string())
+    {
         service::logout(&state.cache, refresh_token).await;
     }
 

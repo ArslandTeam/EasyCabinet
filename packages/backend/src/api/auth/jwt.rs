@@ -2,8 +2,6 @@ use crate::BackendError;
 use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar};
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
-// В функцию validate нужно будет сделать проверку на валидность токена через assert_eq!
-// async fn validate(payload: JwtPayload) {}
 
 #[derive(Deserialize, Serialize)]
 pub struct JwtPayload {
@@ -29,7 +27,7 @@ pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCoo
 pub fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, BackendError> {
     let token = jar
         .get("accessToken")
-        .ok_or(BackendError::BadRequest("No access token".to_string()))?
+        .ok_or(BackendError::BadRequest("No access token".into()))?
         .value()
         .to_string();
 
@@ -42,7 +40,7 @@ pub fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, BackendErr
         ),
         &Validation::default(),
     )
-    .map_err(|_| BackendError::BadRequest("Invalid token".to_string()))?;
+    .map_err(|_| BackendError::BadRequest("Invalid token".into()))?;
 
     Ok(token.claims)
 }
