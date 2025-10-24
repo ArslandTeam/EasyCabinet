@@ -1,7 +1,4 @@
-use crate::{
-    BackendError, api,
-    api::auth::jwt::{self, JwtPayload},
-};
+use crate::{BackendError, api};
 use axum_extra::extract as cookie_manager;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use moka::future::Cache;
@@ -15,7 +12,7 @@ pub async fn verify_auth(
     db: &DatabaseConnection,
     data: api::auth::dto::LoginDTO,
 ) -> Result<api::entities::users::Model, BackendError> {
-    let user = api::user::service::find_user(&db, &data)
+    let user = api::user::service::find_user(&db, api::entities::users::Column::Login, data.login)
         .await
         .map_err(|_| BackendError::InternalError)?;
 
@@ -72,13 +69,54 @@ pub async fn logout(cache: &Cache<String, String>, refresh_token: String) {
     let _ = check_and_remove_token(cache, refresh_token).await;
 }
 
+pub async fn reset_password(db: &DatabaseConnection, email: String) -> Result<(), BackendError> {
+    use rand::RngCore;
+    api::user::service::find_user(db, api::entities::users::Column::Email, email.clone())
+        .await
+        .map_err(|_| BackendError::BadRequest("User not found".into()))?;
+
+    let mut bytes = [0u8; 16];
+    rand::rng().fill_bytes(&mut bytes);
+    let reset_token = hex::encode(bytes);
+
+    api::user::service::update_user_reset_token(db, email.clone(), reset_token.clone())
+        .await
+        .map_err(|_| BackendError::InternalError)?;
+
+    api::email::service::send_reset_password_email(email, reset_token).await?;
+
+    Ok(())
+}
+
+pub async fn change_password(
+    db: &DatabaseConnection,
+    reset_token: String,
+    password: String,
+) -> Result<(), BackendError> {
+    api::user::service::find_user(
+        db,
+        api::entities::users::Column::ResetToken,
+        reset_token.clone(),
+    )
+    .await
+    .map_err(|_| BackendError::BadRequest("Invalid reset token".into()))?;
+
+    let hash_password = generate_hash_password(password);
+
+    api::user::service::change_user_password(db, reset_token, hash_password)
+        .await
+        .map_err(|_| BackendError::InternalError)?;
+
+    Ok(())
+}
+
 fn create_access_token(uuid: String, login: String) -> Result<String, BackendError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
 
-    let claims = jwt::JwtPayload {
+    let claims = api::auth::jwt::JwtPayload {
         uuid: uuid,
         login: login,
         iat: now,
@@ -161,12 +199,12 @@ async fn delete_refresh_token(cache: &Cache<String, String>, refresh_token: Stri
 async fn check_and_remove_token(
     cache: &Cache<String, String>,
     refresh_token: String,
-) -> Result<JwtPayload, BackendError> {
+) -> Result<api::auth::jwt::JwtPayload, BackendError> {
     let access_token = get_refresh_token_data(cache, refresh_token.clone())
         .await
         .ok_or(BackendError::BadRequest("Token not found".into()))?;
 
-    let token = decode::<JwtPayload>(
+    let token = decode::<api::auth::jwt::JwtPayload>(
         &access_token,
         &DecodingKey::from_secret(
             env::var("JWT_SECRET")
@@ -188,7 +226,7 @@ async fn check_and_remove_token(
     };
 
     delete_refresh_token(cache, refresh_token).await;
-    Ok(JwtPayload {
+    Ok(api::auth::jwt::JwtPayload {
         uuid: token.claims.uuid,
         login: token.claims.login,
         iat: token.claims.iat,

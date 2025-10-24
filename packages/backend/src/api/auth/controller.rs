@@ -1,8 +1,11 @@
 use crate::{
     AppState, BackendError,
-    api::auth::{
-        dto::{LoginDTO, RegisterDTO},
-        jwt, service,
+    api::{
+        self,
+        auth::{
+            dto::{ChangePasswordDTO, LoginDTO, RegisterDTO, ResetPasswordDTO},
+            jwt, service,
+        },
     },
 };
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
@@ -61,4 +64,20 @@ pub async fn logout(
         .remove(Cookie::build("accessToken").path("/").build());
 
     Ok((StatusCode::OK, jar))
+}
+
+pub async fn reset_password(
+    State(state): State<AppState>,
+    Json(payload): Json<ResetPasswordDTO>,
+) -> Result<impl IntoResponse, BackendError> {
+    service::reset_password(&state.conn, payload.email).await?;
+    Ok(StatusCode::OK)
+}
+
+pub async fn change_password(
+    State(state): State<AppState>,
+    Json(payload): Json<ChangePasswordDTO>,
+) -> Result<impl IntoResponse, BackendError> {
+    api::auth::service::change_password(&state.conn, payload.reset_token, payload.password).await?;
+    Ok(StatusCode::OK)
 }

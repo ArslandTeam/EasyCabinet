@@ -12,3 +12,14 @@ pub struct RegisterDTO {
     pub email: String,
     pub password: String,
 }
+
+#[derive(Deserialize)]
+pub struct ResetPasswordDTO {
+    pub email: String,
+}
+
+#[derive(Deserialize)]
+pub struct ChangePasswordDTO {
+    pub reset_token: String,
+    pub password: String,
+}

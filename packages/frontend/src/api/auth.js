@@ -39,9 +39,9 @@ export async function resetPassword(email) {
   return true;
 }
 
-export async function changePassword(resetToken, password) {
+export async function changePassword(reset_token, password) {
   try {
-    await axios.post("auth/change-password", { resetToken, password });
+    await axios.post("auth/change-password", { reset_token, password });
   } catch (error) {
     if (error.response?.data.message) {
       failure(error.response.data.message);

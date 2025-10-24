@@ -63,6 +63,14 @@ fn init_router(state: AppState) -> Router {
         .route("/auth/register", post(api::auth::controller::register))
         .route("/auth/refresh", post(api::auth::controller::refresh))
         .route("/auth/logout", post(api::auth::controller::logout))
+        .route(
+            "/auth/reset-password",
+            post(api::auth::controller::reset_password),
+        )
+        .route(
+            "/auth/change-password",
+            post(api::auth::controller::change_password),
+        )
         .route("/users", get(api::user::controller::get_profile))
         .route("/users", put(api::user::controller::update_profile))
         .nest_service(

@@ -1,11 +1,9 @@
+// TODO переписать
 use crate::{
     BackendError,
     api::{
         assets::{self, service::AssetType},
-        auth::{
-            dto::{LoginDTO, RegisterDTO},
-            jwt::JwtPayload,
-        },
+        auth::{dto::RegisterDTO, jwt::JwtPayload},
         entities::users,
     },
 };
@@ -17,12 +15,39 @@ use serde::Serialize;
 
 pub async fn find_user(
     db: &DatabaseConnection,
-    data: &LoginDTO,
+    column: users::Column,
+    value: String,
 ) -> Result<Option<users::Model>, DbErr> {
     users::Entity::find()
-        .filter(users::Column::Login.eq(&data.login))
+        .filter(Expr::col(column).eq(value))
         .one(db)
         .await
+}
+
+pub async fn update_user_reset_token(
+    db: &DatabaseConnection,
+    email: String,
+    reset_token: String,
+) -> Result<(), DbErr> {
+    users::Entity::update_many()
+        .col_expr(users::Column::ResetToken, Expr::value(reset_token))
+        .filter(users::Column::Email.eq(email))
+        .exec(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn change_user_password(
+    db: &DatabaseConnection,
+    reset_token: String,
+    password: String,
+) -> Result<(), DbErr> {
+    users::Entity::update_many()
+        .col_expr(users::Column::Password, Expr::value(password))
+        .filter(users::Column::ResetToken.eq(reset_token))
+        .exec(db)
+        .await?;
+    Ok(())
 }
 
 pub async fn create_user(
