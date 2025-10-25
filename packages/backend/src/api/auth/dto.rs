@@ -11,6 +11,12 @@ pub struct RequestRegisterDTO {
     pub login: String,
     pub email: String,
     pub password: String,
+    pub code: u32,
+}
+
+#[derive(Deserialize)]
+pub struct RequestVerifyEmailDTO {
+    pub email: String,
 }
 
 #[derive(Deserialize)]

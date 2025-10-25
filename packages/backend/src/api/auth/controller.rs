@@ -21,8 +21,16 @@ pub async fn register(
     State(state): State<AppState>,
     Json(payload): Json<dto::RequestRegisterDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    service::register(&state.conn, payload).await?;
+    service::register(&state.conn, &state.cache, payload).await?;
     Ok(StatusCode::CREATED)
+}
+
+pub async fn verify_email(
+    State(state): State<AppState>,
+    Json(payload): Json<dto::RequestVerifyEmailDTO>,
+) -> Result<impl IntoResponse, BackendError> {
+    service::verify_email(&state.conn, &state.cache, payload.email).await?;
+    Ok(StatusCode::OK)
 }
 
 pub async fn refresh(

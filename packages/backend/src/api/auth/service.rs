@@ -43,13 +43,38 @@ pub async fn login(
 
 pub async fn register(
     db: &DatabaseConnection,
+    cache: &Cache<String, String>,
     data: auth::dto::RequestRegisterDTO,
 ) -> Result<(), BackendError> {
+    if cache.get(&data.email).await.as_deref() != Some(&data.code.to_string()) {
+        return Err(BackendError::BadRequest("Invalid email code".into()));
+    }
     let hash_password = generate_hash_password(data.password);
 
     user::service::create_user(db, data.login, hash_password, data.email)
         .await
         .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
+
+    Ok(())
+}
+
+pub async fn verify_email(
+    db: &DatabaseConnection,
+    cache: &Cache<String, String>,
+    email: String,
+) -> Result<(), BackendError> {
+    if user::service::find_user(db, entities::users::Column::Email, email.clone())
+        .await
+        .map_err(|_| BackendError::InternalError)?
+        .is_some()
+    {
+        return Err(BackendError::BadRequest("User already exists".into()))?;
+    }
+
+    use rand::Rng;
+    let code = rand::rng().random_range(10000..999999);
+    cache.insert(email.clone(), code.to_string()).await;
+    email::service::send_verify_email(email, code).await?;
 
     Ok(())
 }
@@ -79,9 +104,15 @@ pub async fn reset_password(db: &DatabaseConnection, email: String) -> Result<()
     rand::rng().fill_bytes(&mut bytes);
     let reset_token = hex::encode(bytes);
 
-    user::service::update_user_reset_token(db, email.clone(), reset_token.clone())
-        .await
-        .map_err(|_| BackendError::InternalError)?;
+    user::service::update_user(
+        db,
+        entities::users::Column::ResetToken,
+        reset_token.clone(),
+        entities::users::Column::Email,
+        email.clone(),
+    )
+    .await
+    .map_err(|_| BackendError::InternalError)?;
 
     email::service::send_reset_password_email(email, reset_token).await?;
 
@@ -99,9 +130,15 @@ pub async fn change_password(
 
     let hash_password = generate_hash_password(password);
 
-    user::service::change_user_password(db, reset_token, hash_password)
-        .await
-        .map_err(|_| BackendError::InternalError)?;
+    user::service::update_user(
+        db,
+        entities::users::Column::Password,
+        hash_password,
+        entities::users::Column::ResetToken,
+        reset_token,
+    )
+    .await
+    .map_err(|_| BackendError::InternalError)?;
 
     Ok(())
 }

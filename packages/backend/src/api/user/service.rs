@@ -19,27 +19,16 @@ pub async fn find_user(
         .await
 }
 
-pub async fn update_user_reset_token(
+pub async fn update_user(
     db: &DatabaseConnection,
-    email: String,
-    reset_token: String,
+    column: users::Column,
+    value: String,
+    column_filter: users::Column,
+    filter: String,
 ) -> Result<(), DbErr> {
     users::Entity::update_many()
-        .col_expr(users::Column::ResetToken, Expr::value(reset_token))
-        .filter(users::Column::Email.eq(email))
-        .exec(db)
-        .await?;
-    Ok(())
-}
-
-pub async fn change_user_password(
-    db: &DatabaseConnection,
-    reset_token: String,
-    password: String,
-) -> Result<(), DbErr> {
-    users::Entity::update_many()
-        .col_expr(users::Column::Password, Expr::value(password))
-        .filter(users::Column::ResetToken.eq(reset_token))
+        .col_expr(column, Expr::value(value))
+        .filter(column_filter.eq(filter))
         .exec(db)
         .await?;
     Ok(())
