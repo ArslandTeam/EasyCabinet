@@ -36,7 +36,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::Password).string_len(60).not_null())
                     .col(
                         ColumnDef::new(Users::ResetToken)
-                            .string_len(255)
+                            .string_len(32)
                             .unique_key()
                             .null(),
                     )

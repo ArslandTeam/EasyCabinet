@@ -1,4 +1,7 @@
-use crate::{BackendError, api};
+use crate::{
+    BackendError,
+    api::{auth, email, entities, user},
+};
 use axum_extra::extract as cookie_manager;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use moka::future::Cache;
@@ -10,14 +13,15 @@ use std::{
 
 pub async fn verify_auth(
     db: &DatabaseConnection,
-    data: api::auth::dto::LoginDTO,
-) -> Result<api::entities::users::Model, BackendError> {
-    let user = api::user::service::find_user(&db, api::entities::users::Column::Login, data.login)
+    login: String,
+    password: String,
+) -> Result<entities::users::Model, BackendError> {
+    let user = user::service::find_user(&db, entities::users::Column::Login, login)
         .await
         .map_err(|_| BackendError::InternalError)?;
 
     match user {
-        Some(user) => match check_password(data.password, &user.password) {
+        Some(user) => match check_password(password, &user.password) {
             true => Ok(user),
             false => Err(BackendError::BadRequest("Invalid password".into())),
         },
@@ -28,9 +32,10 @@ pub async fn verify_auth(
 pub async fn login(
     db: &DatabaseConnection,
     cache: &Cache<String, String>,
-    data: api::auth::dto::LoginDTO,
+    login: String,
+    password: String,
 ) -> Result<(String, String), BackendError> {
-    let user = verify_auth(db, data).await?;
+    let user = verify_auth(db, login, password).await?;
     generate_tokens_pair(cache, user.uuid.unwrap(), user.login)
         .await
         .map_err(|_| BackendError::InternalError)
@@ -38,17 +43,11 @@ pub async fn login(
 
 pub async fn register(
     db: &DatabaseConnection,
-    data: api::auth::dto::RegisterDTO,
+    data: auth::dto::RequestRegisterDTO,
 ) -> Result<(), BackendError> {
     let hash_password = generate_hash_password(data.password);
 
-    let user = api::auth::dto::RegisterDTO {
-        login: data.login,
-        email: data.email,
-        password: hash_password,
-    };
-
-    api::user::service::create_user(db, user)
+    user::service::create_user(db, data.login, hash_password, data.email)
         .await
         .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
 
@@ -71,19 +70,20 @@ pub async fn logout(cache: &Cache<String, String>, refresh_token: String) {
 
 pub async fn reset_password(db: &DatabaseConnection, email: String) -> Result<(), BackendError> {
     use rand::RngCore;
-    api::user::service::find_user(db, api::entities::users::Column::Email, email.clone())
+    user::service::find_user(db, entities::users::Column::Email, email.clone())
         .await
-        .map_err(|_| BackendError::BadRequest("User not found".into()))?;
+        .map_err(|_| BackendError::InternalError)?
+        .ok_or(BackendError::BadRequest("User not found".into()))?;
 
     let mut bytes = [0u8; 16];
     rand::rng().fill_bytes(&mut bytes);
     let reset_token = hex::encode(bytes);
 
-    api::user::service::update_user_reset_token(db, email.clone(), reset_token.clone())
+    user::service::update_user_reset_token(db, email.clone(), reset_token.clone())
         .await
         .map_err(|_| BackendError::InternalError)?;
 
-    api::email::service::send_reset_password_email(email, reset_token).await?;
+    email::service::send_reset_password_email(email, reset_token).await?;
 
     Ok(())
 }
@@ -93,17 +93,13 @@ pub async fn change_password(
     reset_token: String,
     password: String,
 ) -> Result<(), BackendError> {
-    api::user::service::find_user(
-        db,
-        api::entities::users::Column::ResetToken,
-        reset_token.clone(),
-    )
-    .await
-    .map_err(|_| BackendError::BadRequest("Invalid reset token".into()))?;
+    user::service::find_user(db, entities::users::Column::ResetToken, reset_token.clone())
+        .await
+        .map_err(|_| BackendError::BadRequest("Invalid reset token".into()))?;
 
     let hash_password = generate_hash_password(password);
 
-    api::user::service::change_user_password(db, reset_token, hash_password)
+    user::service::change_user_password(db, reset_token, hash_password)
         .await
         .map_err(|_| BackendError::InternalError)?;
 
@@ -116,7 +112,7 @@ fn create_access_token(uuid: String, login: String) -> Result<String, BackendErr
         .unwrap()
         .as_secs();
 
-    let claims = api::auth::jwt::JwtPayload {
+    let claims = auth::jwt::JwtPayload {
         uuid: uuid,
         login: login,
         iat: now,
@@ -199,12 +195,12 @@ async fn delete_refresh_token(cache: &Cache<String, String>, refresh_token: Stri
 async fn check_and_remove_token(
     cache: &Cache<String, String>,
     refresh_token: String,
-) -> Result<api::auth::jwt::JwtPayload, BackendError> {
+) -> Result<auth::jwt::JwtPayload, BackendError> {
     let access_token = get_refresh_token_data(cache, refresh_token.clone())
         .await
         .ok_or(BackendError::BadRequest("Token not found".into()))?;
 
-    let token = decode::<api::auth::jwt::JwtPayload>(
+    let token = decode::<auth::jwt::JwtPayload>(
         &access_token,
         &DecodingKey::from_secret(
             env::var("JWT_SECRET")
@@ -226,7 +222,7 @@ async fn check_and_remove_token(
     };
 
     delete_refresh_token(cache, refresh_token).await;
-    Ok(api::auth::jwt::JwtPayload {
+    Ok(auth::jwt::JwtPayload {
         uuid: token.claims.uuid,
         login: token.claims.login,
         iat: token.claims.iat,

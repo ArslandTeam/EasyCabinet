@@ -1,10 +1,8 @@
 use crate::BackendError;
 use lettre::{Message, SmtpTransport, Transport, message::header::ContentType};
-use minijinja::{Environment, context};
-use std::env;
 
 async fn smtp_build() -> Result<SmtpTransport, BackendError> {
-    let url = env::var("SMTP").expect("SMTP key not set in .env");
+    let url = std::env::var("SMTP").expect("SMTP key not set in .env");
 
     let mailer = SmtpTransport::from_url(&url)
         .map_err(|_| BackendError::InternalError)?
@@ -16,7 +14,7 @@ async fn smtp_build() -> Result<SmtpTransport, BackendError> {
 async fn send_email(to: String, subject: String, html: String) -> Result<(), BackendError> {
     let message = Message::builder()
         .from(
-            env::var("EMAIL_FROM")
+            std::env::var("EMAIL_FROM")
                 .expect("EMAIL_FROM key not set in .env")
                 .parse()
                 .map_err(|_| BackendError::InternalError)?,
@@ -44,8 +42,8 @@ pub async fn send_reset_password_email(
 }
 
 fn render_reset_password_template(reset_token: String) -> String {
-    let frontend_url = env::var("FRONTEND_URL").expect("FRONTEND_URL key not set in .env");
-    let mut env = Environment::new();
+    let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL key not set in .env");
+    let mut env = minijinja::Environment::new();
     env.add_template(
         "reset_password.html",
         include_str!("./templates/reset_password.html"),
@@ -53,7 +51,7 @@ fn render_reset_password_template(reset_token: String) -> String {
     .unwrap();
     let template = env.get_template("reset_password.html").unwrap();
     template
-        .render(context! {
+        .render(minijinja::context! {
             frontend_url => frontend_url,
             reset_token => reset_token
         })

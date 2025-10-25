@@ -1,17 +1,12 @@
 // TODO переписать
 use crate::{
     BackendError,
-    api::{
-        assets::{self, service::AssetType},
-        auth::{dto::RegisterDTO, jwt::JwtPayload},
-        entities::users,
-    },
+    api::{assets, auth, entities::users, user},
 };
 use migration::Expr;
 use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, InsertResult, QueryFilter,
 };
-use serde::Serialize;
 
 pub async fn find_user(
     db: &DatabaseConnection,
@@ -52,13 +47,15 @@ pub async fn change_user_password(
 
 pub async fn create_user(
     db: &DatabaseConnection,
-    data: RegisterDTO,
+    login: String,
+    password: String,
+    email: String,
 ) -> Result<InsertResult<users::ActiveModel>, DbErr> {
     let user = users::ActiveModel {
         uuid: ActiveValue::Set(Some(uuid::Uuid::new_v4().to_string())),
-        login: ActiveValue::Set(data.login),
-        password: ActiveValue::Set(data.password),
-        email: ActiveValue::Set(data.email),
+        login: ActiveValue::Set(login),
+        password: ActiveValue::Set(password),
+        email: ActiveValue::Set(email),
         ..Default::default()
     };
 
@@ -68,7 +65,7 @@ pub async fn create_user(
 pub async fn get_profile(
     db: &DatabaseConnection,
     uuid: String,
-) -> Result<ProfileDTO, BackendError> {
+) -> Result<user::dto::ResponseProfileDTO, BackendError> {
     let user = users::Entity::find()
         .filter(users::Column::Uuid.eq(uuid))
         .one(db)
@@ -80,52 +77,45 @@ pub async fn get_profile(
 }
 
 // TODO может тоже придётся переписать и заодно заменить AssetType на что то другое
-fn get_skin_data(user: users::Model) -> ProfileDTO {
-    ProfileDTO {
+fn get_skin_data(user: users::Model) -> user::dto::ResponseProfileDTO {
+    user::dto::ResponseProfileDTO {
         is_alex: user.is_alex,
         skin_url: user
             .skin_hash
             .as_deref()
-            .and_then(|hash| assets::service::format_url(AssetType::Skin, hash)),
+            .and_then(|hash| assets::service::format_url(assets::service::AssetType::Skin, hash)),
         cape_url: user
             .cape_hash
             .as_deref()
-            .and_then(|hash| assets::service::format_url(AssetType::Cape, hash)),
+            .and_then(|hash| assets::service::format_url(assets::service::AssetType::Cape, hash)),
     }
 }
 
 // FIX это пиздец я потом исправлю
 pub async fn update_profile(
-    user: JwtPayload,
     db: &DatabaseConnection,
+    user: auth::jwt::JwtPayload,
+    profile: user::dto::ReqwestProfileDTO,
     skin: Option<&[u8]>,
     cape: Option<&[u8]>,
 ) -> Result<(), BackendError> {
     let mut update_user = users::Entity::update_many().filter(users::Column::Login.eq(user.login));
 
     if let Some(data) = skin {
-        let hash = assets::service::upload_image(AssetType::Skin, data).await?;
+        let hash = assets::service::upload_image(assets::service::AssetType::Skin, data).await?;
         update_user = update_user.col_expr(users::Column::SkinHash, Expr::value(hash));
     }
 
     if let Some(data) = cape {
-        let hash = assets::service::upload_image(AssetType::Cape, data).await?;
+        let hash = assets::service::upload_image(assets::service::AssetType::Cape, data).await?;
         update_user = update_user.col_expr(users::Column::CapeHash, Expr::value(hash));
     }
+
+    update_user = update_user.col_expr(users::Column::IsAlex, Expr::value(profile.is_alex));
 
     update_user
         .exec(db)
         .await
         .map_err(|_| BackendError::InternalError)?;
     Ok(())
-}
-
-#[derive(Serialize)]
-pub struct ProfileDTO {
-    #[serde(rename = "isAlex")]
-    pub is_alex: Option<bool>,
-    #[serde(rename = "skinUrl")]
-    pub skin_url: Option<String>,
-    #[serde(rename = "capeUrl")]
-    pub cape_url: Option<String>,
 }
