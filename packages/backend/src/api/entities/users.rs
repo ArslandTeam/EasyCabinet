@@ -9,8 +9,6 @@ pub struct Model {
     pub email: String,
     pub login: String,
     pub password: String,
-    #[sea_orm(column_name = "resetToken")]
-    pub reset_token: Option<String>,
     #[sea_orm(column_name = "accessToken")]
     pub access_token: Option<String>,
     #[sea_orm(column_name = "serverId")]

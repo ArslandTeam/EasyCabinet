@@ -73,7 +73,7 @@ pub async fn reset_password(
     State(state): State<AppState>,
     Json(payload): Json<dto::RequestResetPasswordDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    service::reset_password(&state.conn, payload.email).await?;
+    service::reset_password(&state.conn, &state.cache, payload.email).await?;
     Ok(StatusCode::OK)
 }
 
@@ -81,6 +81,12 @@ pub async fn change_password(
     State(state): State<AppState>,
     Json(payload): Json<dto::RequestChangePasswordDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    service::change_password(&state.conn, payload.reset_token, payload.password).await?;
+    service::change_password(
+        &state.conn,
+        &state.cache,
+        payload.reset_token,
+        payload.password,
+    )
+    .await?;
     Ok(StatusCode::OK)
 }

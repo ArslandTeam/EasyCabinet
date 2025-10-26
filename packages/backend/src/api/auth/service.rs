@@ -55,6 +55,8 @@ pub async fn register(
         .await
         .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
 
+    cache.invalidate(&data.code.to_string()).await;
+
     Ok(())
 }
 
@@ -93,7 +95,11 @@ pub async fn logout(cache: &Cache<String, String>, refresh_token: String) {
     let _ = check_and_remove_token(cache, refresh_token).await;
 }
 
-pub async fn reset_password(db: &DatabaseConnection, email: String) -> Result<(), BackendError> {
+pub async fn reset_password(
+    db: &DatabaseConnection,
+    cache: &Cache<String, String>,
+    email: String,
+) -> Result<(), BackendError> {
     use rand::RngCore;
     user::service::find_user(db, entities::users::Column::Email, email.clone())
         .await
@@ -104,16 +110,7 @@ pub async fn reset_password(db: &DatabaseConnection, email: String) -> Result<()
     rand::rng().fill_bytes(&mut bytes);
     let reset_token = hex::encode(bytes);
 
-    user::service::update_user(
-        db,
-        entities::users::Column::ResetToken,
-        reset_token.clone(),
-        entities::users::Column::Email,
-        email.clone(),
-    )
-    .await
-    .map_err(|_| BackendError::InternalError)?;
-
+    cache.insert(reset_token.clone(), email.clone()).await;
     email::service::send_reset_password_email(email, reset_token).await?;
 
     Ok(())
@@ -121,12 +118,16 @@ pub async fn reset_password(db: &DatabaseConnection, email: String) -> Result<()
 
 pub async fn change_password(
     db: &DatabaseConnection,
+    cache: &Cache<String, String>,
     reset_token: String,
     password: String,
 ) -> Result<(), BackendError> {
-    user::service::find_user(db, entities::users::Column::ResetToken, reset_token.clone())
+    let email = cache
+        .get(&reset_token)
         .await
-        .map_err(|_| BackendError::BadRequest("Invalid reset token".into()))?;
+        .ok_or(BackendError::BadRequest(
+            "Invalid or expired reset token".into(),
+        ))?;
 
     let hash_password = generate_hash_password(password);
 
@@ -134,11 +135,13 @@ pub async fn change_password(
         db,
         entities::users::Column::Password,
         hash_password,
-        entities::users::Column::ResetToken,
-        reset_token,
+        entities::users::Column::Email,
+        email,
     )
     .await
     .map_err(|_| BackendError::InternalError)?;
+
+    cache.invalidate(&reset_token).await;
 
     Ok(())
 }

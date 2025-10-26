@@ -34,12 +34,6 @@ impl MigrationTrait for Migration {
                             .not_null(),
                     )
                     .col(ColumnDef::new(Users::Password).string_len(60).not_null())
-                    .col(
-                        ColumnDef::new(Users::ResetToken)
-                            .string_len(32)
-                            .unique_key()
-                            .null(),
-                    )
                     .col(ColumnDef::new(Users::AccessToken).string_len(255).null())
                     .col(ColumnDef::new(Users::ServerId).string_len(255).null())
                     .col(ColumnDef::new(Users::SkinHash).string_len(255).null())
@@ -73,8 +67,6 @@ enum Users {
     Login,
     #[sea_orm(iden = "password")]
     Password,
-    #[sea_orm(iden = "resetToken")]
-    ResetToken,
     #[sea_orm(iden = "accessToken")]
     AccessToken,
     #[sea_orm(iden = "serverId")]
