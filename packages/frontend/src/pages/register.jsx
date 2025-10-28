@@ -1,9 +1,25 @@
 import { useNavigate } from "@solidjs/router";
 import { failure, success } from "../services";
-import { register } from "../api";
+import { register, verifyEmail } from "../api";
 
 export default function Register() {
   const navigate = useNavigate();
+
+  const verifyEmailSubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget.closest("form");
+    const formData = new FormData(form);
+
+    const email = formData.get("email");
+
+    if (!email) {
+      return failure("Заполните поле почты");
+    }
+
+    if (await verifyEmail(email)) {
+      success("Код потдверждения почты отправлен. Проверьте почту");
+    }
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -13,8 +29,9 @@ export default function Register() {
     const email = formData.get("email");
     const password = formData.get("password");
     const password2 = formData.get("password2");
+    const code = Number(formData.get("code"));
 
-    if (!login || !email || !password || !password2) {
+    if (!login || !email || !password || !password2 || !code) {
       return failure("Заполните все поля");
     }
 
@@ -22,7 +39,7 @@ export default function Register() {
       return failure("Пароли не совпадают");
     }
 
-    if (await register(email, login, password)) {
+    if (await register(email, login, password, code)) {
       success("Регистрация прошла успешно");
       navigate("/login");
     }
@@ -57,7 +74,23 @@ export default function Register() {
             placeholder="Повторите пароль"
             class="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
           />
-          <button class="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2">
+          <input
+            type="number"
+            name="code"
+            placeholder="Код"
+            class="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
+          />
+          <button
+            type="button"
+            onClick={verifyEmailSubmit}
+            class="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
+          >
+            Получить код
+          </button>
+          <button
+            type="submit"
+            class="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
+          >
             Зарегистрироваться
           </button>
         </form>

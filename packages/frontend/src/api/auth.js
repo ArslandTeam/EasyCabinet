@@ -7,13 +7,28 @@ const [isAuthed, setIsAuthed] = createSignal(false);
 
 export { isAuthed, isLoaded };
 
-export async function register(email, login, password) {
+export async function register(email, login, password, code) {
   try {
     await axios.post("auth/register", {
       email,
       login,
       password,
+      code
     });
+  } catch (error) {
+    if (error.response?.data.message) {
+      failure(error.response.data.message);
+    } else {
+      failure("Неизвестная ошибка");
+    }
+    return false;
+  }
+  return true;
+}
+
+export async function verifyEmail(email) {
+  try {
+    await axios.post("auth/verify-email", { email });
   } catch (error) {
     if (error.response?.data.message) {
       failure(error.response.data.message);
