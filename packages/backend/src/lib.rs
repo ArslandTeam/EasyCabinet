@@ -77,6 +77,14 @@ fn init_router(state: AppState) -> Router {
         )
         .route("/users", get(api::user::controller::get_profile))
         .route("/users", put(api::user::controller::update_profile))
+        .route("/aurora/auth", post(api::aurora::controller::auth))
+        .route("/aurora/join", post(api::aurora::controller::join))
+        .route(
+            "/aurora/hasJoined",
+            post(api::aurora::controller::has_joined),
+        )
+        .route("/aurora/profile", post(api::aurora::controller::profile))
+        .route("/aurora/profiles", post(api::aurora::controller::profiles))
         .nest_service(
             "/uploads",
             tower_http::services::ServeDir::new(std::path::Path::new("uploads")),

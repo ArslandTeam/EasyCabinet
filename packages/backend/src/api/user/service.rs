@@ -19,6 +19,17 @@ pub async fn find_user(
         .await
 }
 
+pub async fn find_users(
+    db: &DatabaseConnection,
+    column: users::Column,
+    value: Vec<String>,
+) -> Result<Vec<users::Model>, DbErr> {
+    users::Entity::find()
+        .filter(Expr::col(column).is_in(value))
+        .all(db)
+        .await
+}
+
 pub async fn update_user(
     db: &DatabaseConnection,
     column: users::Column,
