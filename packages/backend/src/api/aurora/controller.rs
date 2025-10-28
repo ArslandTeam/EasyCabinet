@@ -15,7 +15,7 @@ pub async fn join(
     State(state): State<AppState>,
     Json(payload): Json<aurora::dto::RequestJoinDto>,
 ) -> Result<impl IntoResponse, BackendError> {
-    Ok(Json(aurora::service::join(&state.conn, payload).await?))
+    Ok(aurora::service::join(&state.conn, payload).await?)
 }
 
 pub async fn has_joined(
@@ -36,5 +36,5 @@ pub async fn profiles(
     State(state): State<AppState>,
     Json(payload): Json<aurora::dto::RequestProfilesDto>,
 ) -> Result<impl IntoResponse, BackendError> {
-    Ok(aurora::service::profiles(&state.conn, payload).await)
+    Ok(aurora::service::profiles(&state.conn, payload).await?)
 }

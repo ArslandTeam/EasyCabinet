@@ -1,4 +1,4 @@
-// TODO переписать и добавить в ответ json строки со скинами
+// TODO переписать. Добавить в ответ json строки со скинами и переписать IntoReposne
 use crate::{
     BackendError,
     api::{aurora, auth, entities, user},
@@ -12,9 +12,7 @@ pub async fn auth(
     login: String,
     password: String,
 ) -> Result<Json<Value>, BackendError> {
-    let user = auth::service::verify_auth(db, login.clone(), password)
-        .await
-        .unwrap();
+    let user = auth::service::verify_auth(db, &login, password).await?;
     let access_token = uuid::Uuid::new_v4().to_string();
     user::service::update_user(
         db,
@@ -27,33 +25,41 @@ pub async fn auth(
     .map_err(|_| BackendError::InternalError)?;
 
     Ok(Json(json!({
-        "username": user.login,
-        "userUUID": user.uuid,
-        "accessToken": access_token
+        "success": true,
+        "result": {
+            "username": user.login,
+            "userUUID": user.uuid,
+            "accessToken": access_token
+        }
     })))
 }
 
 pub async fn join(
     db: &DatabaseConnection,
     body: aurora::dto::RequestJoinDto,
-) -> Result<bool, BackendError> {
-    match user::service::find_user(db, entities::users::Column::Uuid, body.user_uuid.clone())
+) -> Result<Json<Value>, BackendError> {
+    let user = user::service::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
         .await
-        .map_err(|_| BackendError::InternalError)?
-    {
-        Some(user) if user.access_token.as_deref() == Some(&body.access_token) => {
-            user::service::update_user(
-                db,
-                entities::users::Column::ServerId,
-                body.server_id,
-                entities::users::Column::Uuid,
-                body.user_uuid,
-            )
-            .await
-            .map_err(|_| BackendError::InternalError)?;
-            Ok(true)
-        }
-        _ => Ok(false),
+        .map_err(|_| BackendError::InternalError)?;
+
+    match user {
+        Some(user) => match user.access_token.unwrap() == body.access_token {
+            // unwrap может надо будет заменить
+            true => {
+                user::service::update_user(
+                    db,
+                    entities::users::Column::ServerId,
+                    body.server_id,
+                    entities::users::Column::Uuid,
+                    body.user_uuid,
+                )
+                .await
+                .map_err(|_| BackendError::InternalError)?;
+                Ok(Json(json!({"success": true})))
+            }
+            false => Ok(Json(json!({"success": false}))),
+        },
+        None => Ok(Json(json!({"success": false}))),
     }
 }
 
@@ -61,7 +67,7 @@ pub async fn has_join(
     db: &DatabaseConnection,
     body: aurora::dto::RequestHasJoinedDto,
 ) -> Result<Json<Value>, BackendError> {
-    let user = match user::service::find_user(db, entities::users::Column::Login, body.username)
+    let user = match user::service::find_user(db, entities::users::Column::Login, &body.username)
         .await
         .map_err(|_| BackendError::InternalError)?
     {
@@ -70,7 +76,10 @@ pub async fn has_join(
     };
 
     Ok(Json(json!({
-        "userUUID": user.uuid,
+        "success": true,
+        "result": {
+            "userUUID": user.uuid,
+        }
     })))
 }
 
@@ -78,13 +87,16 @@ pub async fn profile(
     db: &DatabaseConnection,
     body: aurora::dto::RequestProfileDTO,
 ) -> Result<Json<Value>, BackendError> {
-    let user = user::service::find_user(db, entities::users::Column::Uuid, body.user_uuid)
+    let user = user::service::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
         .await
         .map_err(|_| BackendError::InternalError)?
         .ok_or(BackendError::BadRequest("User not found".into()))?;
 
     Ok(Json(json!({
-        "username": user.login
+        "success": true,
+        "result": {
+            "username": user.login
+        }
     })))
 }
 
@@ -101,8 +113,11 @@ pub async fn profiles(
             .into_iter()
             .map(|user| {
                 json!({
-                    "id": user.uuid,
-                    "name": user.login,
+                    "success": true,
+                    "result": {
+                        "id": user.uuid,
+                        "name": user.login,
+                    }
                 })
             })
             .collect(),

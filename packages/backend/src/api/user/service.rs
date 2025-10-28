@@ -11,7 +11,7 @@ use sea_orm::{
 pub async fn find_user(
     db: &DatabaseConnection,
     column: users::Column,
-    value: String,
+    value: &str,
 ) -> Result<Option<users::Model>, DbErr> {
     users::Entity::find()
         .filter(Expr::col(column).eq(value))

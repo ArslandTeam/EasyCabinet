@@ -13,10 +13,10 @@ use std::{
 
 pub async fn verify_auth(
     db: &DatabaseConnection,
-    login: String,
+    login: &str,
     password: String,
 ) -> Result<entities::users::Model, BackendError> {
-    let user = user::service::find_user(&db, entities::users::Column::Login, login)
+    let user = user::service::find_user(&db, entities::users::Column::Login, &login)
         .await
         .map_err(|_| BackendError::InternalError)?;
 
@@ -35,7 +35,7 @@ pub async fn login(
     login: String,
     password: String,
 ) -> Result<(String, String), BackendError> {
-    let user = verify_auth(db, login, password).await?;
+    let user = verify_auth(db, &login, password).await?;
     generate_tokens_pair(cache, user.uuid.unwrap(), user.login)
         .await
         .map_err(|_| BackendError::InternalError)
@@ -65,7 +65,7 @@ pub async fn verify_email(
     cache: &Cache<String, String>,
     email: String,
 ) -> Result<(), BackendError> {
-    if user::service::find_user(db, entities::users::Column::Email, email.clone())
+    if user::service::find_user(db, entities::users::Column::Email, &email)
         .await
         .map_err(|_| BackendError::InternalError)?
         .is_some()
@@ -101,7 +101,7 @@ pub async fn reset_password(
     email: String,
 ) -> Result<(), BackendError> {
     use rand::RngCore;
-    user::service::find_user(db, entities::users::Column::Email, email.clone())
+    user::service::find_user(db, entities::users::Column::Email, &email)
         .await
         .map_err(|_| BackendError::InternalError)?
         .ok_or(BackendError::BadRequest("User not found".into()))?;
