@@ -30,7 +30,7 @@ jobs:
       - name: Build
         run: |
           cargo build --release
-          mv ./target/release/${{ matrix.file }} ./${{ matrix.fileName }}
+          mv ./target/release/${{ matrix.file }} ../../${{ matrix.fileName }}
 
       - name: Create release
         uses: softprops/action-gh-release@v2
