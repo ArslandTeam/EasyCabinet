@@ -1,0 +1,30 @@
+name: build_backend
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
