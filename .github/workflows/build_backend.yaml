@@ -7,6 +7,10 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
 
+    defaults:
+      run:
+        working-directory: packages/backend
+
     strategy:
       matrix:
         include:
