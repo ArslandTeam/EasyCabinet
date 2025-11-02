@@ -12,7 +12,7 @@ pub struct JwtPayload {
 }
 
 pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCookieJar {
-    let cookie = Cookie::build(("accessToken", access_token))
+    let cookie = Cookie::build(("access_token", access_token))
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
@@ -26,7 +26,7 @@ pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCoo
 // INFO тут мы извлекаем access token из куки
 pub fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, BackendError> {
     let token = jar
-        .get("accessToken")
+        .get("access_token")
         .ok_or(BackendError::BadRequest("No access token".into()))?
         .value()
         .to_string();

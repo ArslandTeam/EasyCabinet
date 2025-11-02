@@ -59,7 +59,10 @@ fn init_router(state: AppState) -> Router {
 
     Router::new()
         .route("/", get(|| async { Json(json!({"status": "ok"})) }))
-        .route("/auth/login", post(api::auth::controller::login))
+        .route(
+            "/auth/authentication",
+            post(api::auth::controller::authentication),
+        )
         .route("/auth/register", post(api::auth::controller::register))
         .route(
             "/auth/verify-email",

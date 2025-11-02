@@ -40,7 +40,7 @@ pub async fn update_profile(
         let data = field.bytes().await.unwrap();
 
         match name.as_str() {
-            "isAlex" => {
+            "is_alex" => {
                 let val = String::from_utf8_lossy(&data).trim().to_lowercase();
                 match val.as_str() {
                     "true" => is_alex = true,

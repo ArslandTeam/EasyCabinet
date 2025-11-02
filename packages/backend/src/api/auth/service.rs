@@ -29,7 +29,7 @@ pub async fn verify_auth(
     }
 }
 
-pub async fn login(
+pub async fn authentication(
     db: &DatabaseConnection,
     cache: &Cache<String, String>,
     login: String,
@@ -177,7 +177,7 @@ fn create_access_token(uuid: String, login: String) -> Result<String, BackendErr
 async fn create_refresh_token(cache: &Cache<String, String>, access_token: String) -> String {
     let refresh_token = uuid::Uuid::new_v4().to_string();
     cache
-        .insert(format!("refreshToken:{refresh_token}"), access_token)
+        .insert(format!("refresh_token:{refresh_token}"), access_token)
         .await;
 
     refresh_token
@@ -197,7 +197,7 @@ pub fn set_refresh_token_cookie(
     jar: cookie_manager::SignedCookieJar,
     refresh_token: String,
 ) -> cookie_manager::SignedCookieJar {
-    let cookie = cookie_manager::cookie::Cookie::build(("refreshToken", refresh_token))
+    let cookie = cookie_manager::cookie::Cookie::build(("refresh_token", refresh_token))
         .path("/auth")
         .http_only(true)
         .same_site(cookie_manager::cookie::SameSite::Lax)
@@ -217,18 +217,18 @@ async fn get_refresh_token_data(
     cache: &Cache<String, String>,
     refresh_token: String,
 ) -> Option<String> {
-    cache.get(&format!("refreshToken:{refresh_token}")).await
+    cache.get(&format!("refresh_token:{refresh_token}")).await
 }
 
 async fn add_token_to_black_list(cache: &Cache<String, String>, access_token: String) {
     cache
-        .insert(format!("accessToken:{access_token}"), 1.to_string())
+        .insert(format!("access_token:{access_token}"), 1.to_string())
         .await
 }
 
 async fn delete_refresh_token(cache: &Cache<String, String>, refresh_token: String) {
     cache
-        .invalidate(&format!("refreshToken:{refresh_token}"))
+        .invalidate(&format!("refresh_token:{refresh_token}"))
         .await
 }
 

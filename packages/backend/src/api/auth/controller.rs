@@ -5,13 +5,13 @@ use crate::{
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::extract::{SignedCookieJar, cookie::Cookie};
 
-pub async fn login(
+pub async fn authentication(
     State(state): State<AppState>,
     jar: SignedCookieJar,
     Json(payload): Json<dto::RequestLoginDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
     let (access_token, refresh_token) =
-        service::login(&state.conn, &state.cache, payload.login, payload.password).await?;
+        service::authentication(&state.conn, &state.cache, payload.login, payload.password).await?;
     let jar = service::set_refresh_token_cookie(jar, refresh_token);
     let jar = jwt::set_access_token(jar, access_token.clone());
     Ok((StatusCode::OK, jar))
@@ -38,7 +38,7 @@ pub async fn refresh(
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
     let old_refresh_token = jar
-        .get("refreshToken")
+        .get("refresh_token")
         .ok_or(BackendError::BadRequest("No refresh token".to_string()))?
         .value()
         .to_string();
@@ -56,15 +56,15 @@ pub async fn logout(
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
     if let Some(refresh_token) = jar
-        .get("refreshToken")
+        .get("refresh_token")
         .map(|cookie| cookie.value().to_string())
     {
         service::logout(&state.cache, refresh_token).await;
     }
 
     let jar = jar
-        .remove(Cookie::from("refreshToken"))
-        .remove(Cookie::build("accessToken").path("/").build());
+        .remove(Cookie::from("refresh_token"))
+        .remove(Cookie::build("access_token").path("/").build());
 
     Ok((StatusCode::OK, jar))
 }
