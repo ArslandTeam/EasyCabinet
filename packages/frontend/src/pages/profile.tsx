@@ -51,11 +51,12 @@ export default function Profile() {
       });
     }
 
-    setSkinType(profile.is_alex);
+    setSkinType(!!profile.is_alex);
 
     if (profile.cape_url) {
       skinViewer.current?.loadCape(profile.cape_url);
     }
+
   }, [profile]);
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {

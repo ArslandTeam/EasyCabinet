@@ -1,6 +1,6 @@
 use axum::{
     Json, Router,
-    extract::FromRef,
+    extract::{FromRef, rejection::JsonRejection},
     http::{HeaderValue, StatusCode},
     routing::{get, post, put},
 };
@@ -35,6 +35,7 @@ pub async fn start_backend() {
         .expect("Database connection failed");
     Migrator::up(&conn, None).await.unwrap();
 
+    // TODO and FIX сделать для каждого кеша разное время жизни
     let cache = Cache::builder()
         .max_capacity(1000)
         .time_to_live(std::time::Duration::from_secs(2592000))
@@ -121,6 +122,36 @@ impl FromRef<AppState> for Key {
         state.key.clone()
     }
 }
+
+// ==== INFO это реализация сообщает контролеру об валидации и выводит ошибку через BackendError::BagReqwest
+// пример взят отсюда https://github.com/tokio-rs/axum/blob/main/examples/validator/src/main.rs и https://github.com/truehazker/axum-validated-extractors/blob/develop/src/lib.rs
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ValidatedJson<T>(pub T);
+
+impl<T, S> axum::extract::FromRequest<S> for ValidatedJson<T>
+where
+    T: serde::de::DeserializeOwned + validator::Validate,
+    S: Send + Sync,
+    axum::extract::Json<T>: axum::extract::FromRequest<S, Rejection = JsonRejection>,
+{
+    type Rejection = BackendError;
+
+    async fn from_request(
+        req: axum::http::Request<axum::body::Body>,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        let axum::extract::Json(value) = axum::extract::Json::<T>::from_request(req, state)
+            .await
+            .map_err(|e| BackendError::BadRequest(e.to_string()))?;
+
+        value
+            .validate()
+            .map_err(|e| BackendError::BadRequest(e.to_string()))?;
+
+        Ok(ValidatedJson(value))
+    }
+}
+// ======
 
 #[derive(Debug)]
 pub enum BackendError {

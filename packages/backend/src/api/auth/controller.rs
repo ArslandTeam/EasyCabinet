@@ -1,14 +1,14 @@
 use crate::{
-    AppState, BackendError,
+    AppState, BackendError, ValidatedJson,
     api::auth::{dto, jwt, service},
 };
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::extract::{SignedCookieJar, cookie::Cookie};
 
 pub async fn authentication(
     State(state): State<AppState>,
     jar: SignedCookieJar,
-    Json(payload): Json<dto::RequestLoginDTO>,
+    ValidatedJson(payload): ValidatedJson<dto::RequestLoginDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
     let (access_token, refresh_token) =
         service::authentication(&state.conn, &state.cache, payload.login, payload.password).await?;
@@ -19,7 +19,7 @@ pub async fn authentication(
 
 pub async fn register(
     State(state): State<AppState>,
-    Json(payload): Json<dto::RequestRegisterDTO>,
+    ValidatedJson(payload): ValidatedJson<dto::RequestRegisterDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
     service::register(&state.conn, &state.cache, payload).await?;
     Ok(StatusCode::CREATED)
@@ -27,7 +27,7 @@ pub async fn register(
 
 pub async fn verify_email(
     State(state): State<AppState>,
-    Json(payload): Json<dto::RequestVerifyEmailDTO>,
+    ValidatedJson(payload): ValidatedJson<dto::RequestVerifyEmailDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
     service::verify_email(&state.conn, &state.cache, payload.email).await?;
     Ok(StatusCode::OK)
@@ -39,7 +39,7 @@ pub async fn refresh(
 ) -> Result<impl IntoResponse, BackendError> {
     let old_refresh_token = jar
         .get("refresh_token")
-        .ok_or(BackendError::BadRequest("No refresh token".to_string()))?
+        .ok_or(BackendError::BadRequest("No refresh token".into()))?
         .value()
         .to_string();
 
@@ -71,7 +71,7 @@ pub async fn logout(
 
 pub async fn reset_password(
     State(state): State<AppState>,
-    Json(payload): Json<dto::RequestResetPasswordDTO>,
+    ValidatedJson(payload): ValidatedJson<dto::RequestResetPasswordDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
     service::reset_password(&state.conn, &state.cache, payload.email).await?;
     Ok(StatusCode::OK)
@@ -79,7 +79,7 @@ pub async fn reset_password(
 
 pub async fn change_password(
     State(state): State<AppState>,
-    Json(payload): Json<dto::RequestChangePasswordDTO>,
+    ValidatedJson(payload): ValidatedJson<dto::RequestChangePasswordDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
     service::change_password(
         &state.conn,

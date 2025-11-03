@@ -51,6 +51,7 @@ pub async fn register(
     }
     let hash_password = generate_hash_password(data.password);
 
+    // TODO надо будет болле правильно обрабатывать ошибку
     user::service::create_user(db, data.login, hash_password, data.email)
         .await
         .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
@@ -70,7 +71,7 @@ pub async fn verify_email(
         .map_err(|_| BackendError::InternalError)?
         .is_some()
     {
-        return Err(BackendError::BadRequest("User already exists".into()))?;
+        return Err(BackendError::BadRequest("User already exists".into()));
     }
 
     use rand::Rng;
