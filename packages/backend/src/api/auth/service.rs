@@ -75,7 +75,7 @@ pub async fn verify_email(
     }
 
     use rand::Rng;
-    let code = rand::rng().random_range(10000..999999);
+    let code = rand::rng().random_range(100000..=999999);
     cache.insert(email.clone(), code.to_string()).await;
     email::service::send_verify_email(email, code).await?;
 

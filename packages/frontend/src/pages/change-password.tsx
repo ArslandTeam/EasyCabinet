@@ -30,7 +30,7 @@ export default function ChangePassword() {
 
     if (await changePassword(resetToken, password)) {
       success("Пароль успешно изменен");
-      navigate("/login");
+      navigate("/authentication");
     }
   };
 
