@@ -40,26 +40,24 @@ pub async fn join(
 ) -> Result<Json<Value>, BackendError> {
     let user = user::service::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
         .await
-        .map_err(|_| BackendError::InternalError)?;
+        .map_err(|_| BackendError::InternalError)?
+        .ok_or(BackendError::BadRequest("User not found".into()))?;
 
-    match user {
-        Some(user) => match user.access_token.unwrap() == body.access_token {
-            // unwrap может надо будет заменить
-            true => {
-                user::service::update_user(
-                    db,
-                    entities::users::Column::ServerId,
-                    body.server_id,
-                    entities::users::Column::Uuid,
-                    body.user_uuid,
-                )
-                .await
-                .map_err(|_| BackendError::InternalError)?;
-                Ok(Json(json!({"success": true})))
-            }
-            false => Ok(Json(json!({"success": false}))),
-        },
-        None => Ok(Json(json!({"success": false}))),
+    match user.access_token.unwrap() == body.access_token {
+        // unwrap может надо будет заменить
+        true => {
+            user::service::update_user(
+                db,
+                entities::users::Column::ServerId,
+                body.server_id,
+                entities::users::Column::Uuid,
+                body.user_uuid,
+            )
+            .await
+            .map_err(|_| BackendError::InternalError)?;
+            Ok(Json(json!({"success": true})))
+        }
+        false => Ok(Json(json!({"success": false}))),
     }
 }
 
@@ -67,12 +65,13 @@ pub async fn has_join(
     db: &DatabaseConnection,
     body: aurora::dto::RequestHasJoinedDto,
 ) -> Result<Json<Value>, BackendError> {
-    let user = match user::service::find_user(db, entities::users::Column::Login, &body.username)
+    let user = user::service::find_user(db, entities::users::Column::Login, &body.username)
         .await
         .map_err(|_| BackendError::InternalError)?
-    {
-        Some(user) if user.server_id.as_deref() == Some(&body.server_id) => user,
-        _ => return Err(BackendError::InternalError),
+        .ok_or(BackendError::BadRequest("User not found".into()))?;
+
+    if user.server_id.as_deref() == Some(&body.server_id) {
+        return Err(BackendError::InternalError);
     };
 
     Ok(Json(json!({

@@ -39,6 +39,7 @@ pub async fn upload_image(asset_type: AssetType, image: &[u8]) -> Result<String,
         .map_err(|_| BackendError::BadRequest("".to_string()))
 }
 
+// FIX вот это тем более переписать
 async fn verify_asset(asset_type: AssetType, image: &[u8]) -> Result<(), BackendError> {
     let reader = ImageReader::new(Cursor::new(image))
         .with_guessed_format()
@@ -49,10 +50,34 @@ async fn verify_asset(asset_type: AssetType, image: &[u8]) -> Result<(), Backend
     })?;
 
     match format {
-        ImageFormat::Png | ImageFormat::Jpeg => Ok(()),
-        _ => Err(BackendError::BadRequest(format!(
-            "Invalid {asset_type:?} format: expected PNG or JPEG, got {:?}",
-            format
-        ))),
+        ImageFormat::Png | ImageFormat::Jpeg => {}
+        _ => {
+            return Err(BackendError::BadRequest(format!(
+                "Invalid {asset_type:?} format: expected PNG or JPEG, got {:?}",
+                format
+            )));
+        }
     }
+
+    let img = reader
+        .decode()
+        .map_err(|_| BackendError::BadRequest(format!("Invalid {asset_type:?} data")))?;
+
+    use image::GenericImageView;
+    let (width, height) = img.dimensions();
+
+    let valid_sizes: &[(u32, u32)] = match asset_type {
+        AssetType::Skin => &[(64, 32), (64, 64)],
+        AssetType::Cape => &[(64, 32)],
+    };
+
+    let valid = valid_sizes.iter().any(|&(w, h)| w == width && h == height);
+
+    if !valid {
+        return Err(BackendError::BadRequest(format!(
+            "Invalid {asset_type:?} size: got {width}x{height}"
+        )));
+    }
+
+    Ok(())
 }

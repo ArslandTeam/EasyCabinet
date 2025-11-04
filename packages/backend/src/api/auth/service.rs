@@ -16,7 +16,7 @@ pub async fn verify_auth(
     login: &str,
     password: String,
 ) -> Result<entities::users::Model, BackendError> {
-    let user = user::service::find_user(&db, entities::users::Column::Login, &login)
+    let user = user::service::find_user(db, entities::users::Column::Login, login)
         .await
         .map_err(|_| BackendError::InternalError)?;
 

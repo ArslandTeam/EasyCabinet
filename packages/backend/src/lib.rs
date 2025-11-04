@@ -1,19 +1,12 @@
 use axum::{
     Json, Router,
-    extract::{FromRef, rejection::JsonRejection},
-    http::{HeaderValue, StatusCode},
+    http::HeaderValue,
     routing::{get, post, put},
 };
 use axum_extra::extract::cookie::Key;
-use http::{Method, header};
-use migration::{Migrator, MigratorTrait};
-use moka::future::Cache;
-use sea_orm::{Database, DatabaseConnection};
-use serde_json::json;
 use std::env;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing_subscriber::EnvFilter;
 mod api;
+pub mod generate_config;
 
 #[tokio::main]
 pub async fn start_backend() {
@@ -24,19 +17,25 @@ pub async fn start_backend() {
     //"RUST_LOG=debug" or "RUST_LOG=info"
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .or_else(|_| EnvFilter::try_new("axum_tracing_example=error,tower_http=warn"))
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .or_else(|_| {
+                    tracing_subscriber::EnvFilter::try_new(
+                        "axum_tracing_example=error,tower_http=warn",
+                    )
+                })
                 .unwrap(),
         )
         .init();
 
-    let conn = Database::connect(db_url)
+    use migration::MigratorTrait;
+
+    let conn = sea_orm::Database::connect(db_url)
         .await
         .expect("Database connection failed");
-    Migrator::up(&conn, None).await.unwrap();
+    migration::Migrator::up(&conn, None).await.unwrap();
 
     // TODO and FIX сделать для каждого кеша разное время жизни
-    let cache = Cache::builder()
+    let cache = moka::future::Cache::builder()
         .max_capacity(1000)
         .time_to_live(std::time::Duration::from_secs(2592000))
         .build();
@@ -56,10 +55,15 @@ pub async fn start_backend() {
 }
 
 fn init_router(state: AppState) -> Router {
+    use http::{Method, header};
+
     let frontend = env::var("FRONTEND_URL").expect("FRONTEND_URL key not set in .env");
 
     Router::new()
-        .route("/", get(|| async { Json(json!({"status": "ok"})) }))
+        .route(
+            "/",
+            get(|| async { Json(serde_json::json!({"status": "ok"})) }),
+        )
         .route(
             "/auth/authentication",
             post(api::auth::controller::authentication),
@@ -93,9 +97,9 @@ fn init_router(state: AppState) -> Router {
             "/uploads",
             tower_http::services::ServeDir::new(std::path::Path::new("uploads")),
         )
-        .layer(TraceLayer::new_for_http())
+        .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(
-            CorsLayer::new()
+            tower_http::cors::CorsLayer::new()
                 .allow_origin(frontend.parse::<HeaderValue>().unwrap())
                 .allow_methods([Method::POST, Method::GET, Method::PUT, Method::OPTIONS])
                 .allow_headers([
@@ -111,13 +115,13 @@ fn init_router(state: AppState) -> Router {
 
 #[derive(Clone)]
 struct AppState {
-    conn: DatabaseConnection,
-    cache: Cache<String, String>,
+    conn: sea_orm::DatabaseConnection,
+    cache: moka::future::Cache<String, String>,
     key: Key,
 }
 
 // INFO эта реализация сообщает `SignedCookieJar`, как получить доступ к ключу из нашего состояния
-impl FromRef<AppState> for Key {
+impl axum::extract::FromRef<AppState> for Key {
     fn from_ref(state: &AppState) -> Self {
         state.key.clone()
     }
@@ -132,7 +136,8 @@ impl<T, S> axum::extract::FromRequest<S> for ValidatedJson<T>
 where
     T: serde::de::DeserializeOwned + validator::Validate,
     S: Send + Sync,
-    axum::extract::Json<T>: axum::extract::FromRequest<S, Rejection = JsonRejection>,
+    axum::extract::Json<T>:
+        axum::extract::FromRequest<S, Rejection = axum::extract::rejection::JsonRejection>,
 {
     type Rejection = BackendError;
 
@@ -163,10 +168,14 @@ pub enum BackendError {
 impl axum::response::IntoResponse for BackendError {
     fn into_response(self) -> axum::response::Response {
         match self {
-            BackendError::BadRequest(msg) => {
-                (StatusCode::BAD_REQUEST, Json(json!({"message": msg}))).into_response()
+            BackendError::BadRequest(msg) => (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"message": msg})),
+            )
+                .into_response(),
+            BackendError::InternalError => {
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
-            BackendError::InternalError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }
     }
 }

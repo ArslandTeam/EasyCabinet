@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use validator::Validate;
 
-// TODO надо сделать нормальный вывод ошибки валидации
 static LOGIN_REGEX: std::sync::LazyLock<regex::Regex> =
     std::sync::LazyLock::new(|| regex::Regex::new(r"^[a-zA-Z0-9_]+$").unwrap());
 
@@ -20,7 +19,7 @@ pub struct RequestRegisterDTO {
     pub login: String,
     #[validate(email)]
     pub email: String,
-    #[validate(length(min = 8, max = 20))]
+    #[validate(length(min = 8, max = 20, message = "Пароль должен быть от 8 до 20 символов"))]
     pub password: String,
     pub code: u32,
 }

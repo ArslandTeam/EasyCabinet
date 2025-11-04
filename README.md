@@ -3,15 +3,7 @@
 
 Данный проект предоставляет собой базовый личный кабинет для проектов использующий [AuroraLuncher](https://github.com/AuroraTeam/AuroraLauncher)
 
-## Установка
-
-Первым делом установите нужные зависимости.
-
-```
-pnpm i
-```
-
-Далее пройдите отдельно настройку и установку [frontend](https://github.com/AuroraTeam/EasyCabinet/tree/master/packages/frontend) и [backend](https://github.com/AuroraTeam/EasyCabinet/tree/master/packages/backend).
+Далее пройдите отдельно настройку и установку [frontend](https://github.com/ArslandTeam/EasyCabinet/tree/features/new-stack/packages/frontend) и [backend](https://github.com/ArslandTeam/EasyCabinet/blob/features/new-stack/packages/backend/README.md).
 
 ## Привязка к лаунчеру
 

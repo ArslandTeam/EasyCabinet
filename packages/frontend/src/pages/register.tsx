@@ -42,7 +42,7 @@ export default function Register() {
 
     if (await register(email, login, password, code)) {
       success("Регистрация прошла успешно");
-      navigate("/login");
+      navigate("/authentication");
     }
   };
 
