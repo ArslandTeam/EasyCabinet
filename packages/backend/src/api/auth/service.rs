@@ -254,7 +254,7 @@ async fn check_and_remove_token(
 
     // INFO Проверка на валидность токена
     if token.claims.exp
-        < SystemTime::now()
+        > SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs()
