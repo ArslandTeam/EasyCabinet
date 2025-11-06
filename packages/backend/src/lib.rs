@@ -1,8 +1,3 @@
-use axum::{
-    Json, Router,
-    http::HeaderValue,
-    routing::{get, post, put},
-};
 use axum_extra::extract::cookie::Key;
 use std::env;
 mod api;
@@ -36,7 +31,7 @@ pub async fn start_backend() {
 
     // TODO and FIX сделать для каждого кеша разное время жизни
     let cache = moka::future::Cache::builder()
-        .max_capacity(1000)
+        .max_capacity(15000)
         .time_to_live(std::time::Duration::from_secs(2592000))
         .build();
 
@@ -54,15 +49,16 @@ pub async fn start_backend() {
     axum::serve(listener, init_router(state)).await.unwrap();
 }
 
-fn init_router(state: AppState) -> Router {
+fn init_router(state: AppState) -> axum::Router {
+    use axum::routing::{get, post, put};
     use http::{Method, header};
 
     let frontend = env::var("FRONTEND_URL").expect("FRONTEND_URL key not set in .env");
 
-    Router::new()
+    axum::Router::new()
         .route(
             "/",
-            get(|| async { Json(serde_json::json!({"status": "ok"})) }),
+            get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
         )
         .route(
             "/auth/authentication",
@@ -100,7 +96,7 @@ fn init_router(state: AppState) -> Router {
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(
             tower_http::cors::CorsLayer::new()
-                .allow_origin(frontend.parse::<HeaderValue>().unwrap())
+                .allow_origin(frontend.parse::<axum::http::HeaderValue>().unwrap())
                 .allow_methods([Method::POST, Method::GET, Method::PUT, Method::OPTIONS])
                 .allow_headers([
                     header::CONTENT_TYPE,
@@ -120,15 +116,24 @@ struct AppState {
     key: Key,
 }
 
-// INFO эта реализация сообщает `SignedCookieJar`, как получить доступ к ключу из нашего состояния
+/// Эта реализация сообщает [`SignedCookieJar`], как получить доступ к ключу из нашего состояния
 impl axum::extract::FromRef<AppState> for Key {
     fn from_ref(state: &AppState) -> Self {
         state.key.clone()
     }
 }
 
-// ==== INFO это реализация сообщает контролеру об валидации и выводит ошибку через BackendError::BagReqwest
-// пример взят отсюда https://github.com/tokio-rs/axum/blob/main/examples/validator/src/main.rs и https://github.com/truehazker/axum-validated-extractors/blob/develop/src/lib.rs
+/// Реализация, выполняющая автоматическую валидацию JSON запроса.
+///
+/// Используется в контроллерах для проверки входных данных и возвращает
+/// [`BackendError::BadRequest`] при ошибке валидации или десериализации.
+///
+/// - Тип `T` должен реализовывать [`serde::de::DeserializeOwned`] и [`validator::Validate`].
+/// - Контекст `S` должен быть безопасен для асинхронного использования (`Send + Sync`).
+///
+/// Пример взять реализациями из:
+/// - <https://github.com/tokio-rs/axum/blob/main/examples/validator/src/main.rs>
+/// - <https://github.com/truehazker/axum-validated-extractors/blob/develop/src/lib.rs>
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ValidatedJson<T>(pub T);
 
@@ -156,11 +161,11 @@ where
         Ok(ValidatedJson(value))
     }
 }
-// ======
 
 #[derive(Debug)]
 pub enum BackendError {
     BadRequest(String),
+    BadRequestAurora(String),
     InternalError,
 }
 
@@ -170,7 +175,12 @@ impl axum::response::IntoResponse for BackendError {
         match self {
             BackendError::BadRequest(msg) => (
                 axum::http::StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({"message": msg})),
+                axum::Json(serde_json::json!({"message": msg})),
+            )
+                .into_response(),
+            BackendError::BadRequestAurora(msg) => (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"success": false, "error": msg})),
             )
                 .into_response(),
             BackendError::InternalError => {

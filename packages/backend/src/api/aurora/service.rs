@@ -1,4 +1,4 @@
-// TODO переписать. Добавить в ответ json строки со скинами и переписать IntoReposne
+// TODO добавить в ответ json строки со скинами
 use crate::{
     BackendError,
     api::{aurora, auth, entities, user},
@@ -41,10 +41,9 @@ pub async fn join(
     let user = user::service::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
         .await
         .map_err(|_| BackendError::InternalError)?
-        .ok_or(BackendError::BadRequest("User not found".into()))?;
+        .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
-    match user.access_token.unwrap() == body.access_token {
-        // unwrap может надо будет заменить
+    match user.access_token == Some(body.access_token) {
         true => {
             user::service::update_user(
                 db,
@@ -57,7 +56,9 @@ pub async fn join(
             .map_err(|_| BackendError::InternalError)?;
             Ok(Json(json!({"success": true})))
         }
-        false => Ok(Json(json!({"success": false}))),
+        false => Err(BackendError::BadRequestAurora(
+            "Access token not correct".into(),
+        )),
     }
 }
 
@@ -68,9 +69,9 @@ pub async fn has_join(
     let user = user::service::find_user(db, entities::users::Column::Login, &body.username)
         .await
         .map_err(|_| BackendError::InternalError)?
-        .ok_or(BackendError::BadRequest("User not found".into()))?;
+        .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
-    if user.server_id.as_deref() == Some(&body.server_id) {
+    if user.server_id == Some(body.server_id) {
         return Err(BackendError::InternalError);
     };
 
@@ -89,7 +90,7 @@ pub async fn profile(
     let user = user::service::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
         .await
         .map_err(|_| BackendError::InternalError)?
-        .ok_or(BackendError::BadRequest("User not found".into()))?;
+        .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
     Ok(Json(json!({
         "success": true,

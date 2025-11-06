@@ -24,7 +24,7 @@ pub fn format_url(asset_type: AssetType, hash: &str) -> Option<String> {
 
 pub async fn upload_image(asset_type: AssetType, image: &[u8]) -> Result<String, BackendError> {
     if image.is_empty() {
-        return Err(BackendError::BadRequest("Invalid image".to_string()));
+        return Err(BackendError::BadRequest("Invalid image".into()));
     }
 
     verify_asset(asset_type, image).await?;
@@ -36,7 +36,7 @@ pub async fn upload_image(asset_type: AssetType, image: &[u8]) -> Result<String,
 
     files::service::save_file(image, scope)
         .await
-        .map_err(|_| BackendError::BadRequest("".to_string()))
+        .map_err(|_| BackendError::InternalError)
 }
 
 // FIX вот это тем более переписать

@@ -17,13 +17,18 @@ pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCoo
         .http_only(true)
         .same_site(SameSite::Lax)
         .secure(std::env::var("COOKIE_SECURE").unwrap_or_default() == "true")
-        .max_age(time::Duration::seconds(900))
+        .max_age(time::Duration::seconds(
+            std::env::var("JWT_EXPIRES_IN")
+                .unwrap()
+                .parse::<i64>()
+                .expect("JWT_EXPIRES_IN key not set in .env"),
+        ))
         .build();
 
     jar.add(cookie)
 }
 
-// INFO тут мы извлекаем access token из куки
+/// Передаётся ссылка на куки из [`SignedCookieJar`], извлекается и преобразуется в строку. В последствии декодидируется и проверяется валидность
 pub fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, BackendError> {
     let token = jar
         .get("access_token")
