@@ -233,13 +233,18 @@ async fn delete_refresh_token(cache: &Cache<String, String>, refresh_token: Stri
         .await
 }
 
-async fn check_and_remove_token(
+pub async fn check_and_remove_token(
     cache: &Cache<String, String>,
     refresh_token: String,
 ) -> Result<auth::jwt::JwtPayload, BackendError> {
     let access_token = get_refresh_token_data(cache, refresh_token.clone())
         .await
         .ok_or(BackendError::BadRequest("Token not found".into()))?;
+
+    let mut validation = Validation::default();
+    validation.validate_nbf = false;
+    validation.validate_exp = false;
+    validation.required_spec_claims.clear();
 
     let token = decode::<auth::jwt::JwtPayload>(
         &access_token,
@@ -248,21 +253,23 @@ async fn check_and_remove_token(
                 .expect("JWT_SECRET key not set in .env")
                 .as_ref(),
         ),
-        &Validation::default(),
+        &validation,
     )
     .map_err(|_| BackendError::BadRequest("Invalid token".into()))?;
 
-    // INFO Проверка на валидность токена
-    if token.claims.exp
-        > SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-    {
-        add_token_to_black_list(cache, access_token).await;
-    };
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let ttl = token.claims.exp.saturating_sub(now);
+
+    if ttl > 0 {
+        add_token_to_black_list(cache, access_token.clone()).await;
+    }
 
     delete_refresh_token(cache, refresh_token).await;
+
     Ok(auth::jwt::JwtPayload {
         uuid: token.claims.uuid,
         login: token.claims.login,

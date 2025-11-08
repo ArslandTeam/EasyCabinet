@@ -16,6 +16,7 @@ pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCoo
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
+        .max_age(time::Duration::seconds(std::env::var("JWT_EXPIRES_IN").unwrap().parse::<i64>().unwrap_or(900)))
         .secure(std::env::var("COOKIE_SECURE").unwrap_or_default() == "true")
         .build();
 
