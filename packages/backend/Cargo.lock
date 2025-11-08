@@ -444,7 +444,6 @@ dependencies = [
  "axum-extra",
  "bcrypt",
  "dotenvy",
- "hex",
  "http",
  "image",
  "jsonwebtoken",
@@ -794,7 +793,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
 dependencies = [
  "bytes",
+ "futures-core",
  "memchr",
+ "pin-project-lite",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -2074,6 +2077,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86ea4e65087ff52f3862caff188d489f1fab49a0cb09e01b2e3f1a617b10aaed"
+dependencies = [
+ "hashbrown 0.15.5",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2926,13 +2938,20 @@ version = "0.32.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "014cc767fefab6a3e798ca45112bccad9c6e0e218fbd49720042716c73cfef44"
 dependencies = [
+ "bytes",
+ "cfg-if",
  "combine",
+ "futures-util",
  "itoa",
+ "lru",
  "num-bigint",
  "percent-encoding",
+ "pin-project-lite",
  "ryu",
  "sha1_smol",
  "socket2",
+ "tokio",
+ "tokio-util",
  "url",
 ]
 

@@ -1,10 +1,10 @@
+// FIX старые access_token токены остаются в кеше. Нужно убрать большое количество .clone()
 use crate::{
     BackendError,
-    api::{auth, email, entities, user},
+    api::{auth, cache_manager::CacheManager, email, entities, user},
 };
 use axum_extra::extract as cookie_manager;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use moka::future::Cache;
 use sea_orm::DatabaseConnection;
 use std::{
     env,
@@ -31,7 +31,7 @@ pub async fn verify_auth(
 
 pub async fn authentication(
     db: &DatabaseConnection,
-    cache: &Cache<String, String>,
+    cache: &CacheManager,
     login: String,
     password: String,
 ) -> Result<(String, String), BackendError> {
@@ -43,10 +43,10 @@ pub async fn authentication(
 
 pub async fn register(
     db: &DatabaseConnection,
-    cache: &Cache<String, String>,
+    cache: &CacheManager,
     data: auth::dto::RequestRegisterDTO,
 ) -> Result<(), BackendError> {
-    if cache.get(&data.email).await.as_deref() != Some(&data.code.to_string()) {
+    if cache.get(data.email.clone()).await != Some(data.code.to_string()) {
         return Err(BackendError::BadRequest("Invalid email code".into()));
     }
     let hash_password = generate_hash_password(data.password);
@@ -56,14 +56,14 @@ pub async fn register(
         .await
         .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
 
-    cache.invalidate(&data.code.to_string()).await;
+    cache.delete(data.code.to_string()).await?;
 
     Ok(())
 }
 
 pub async fn verify_email(
     db: &DatabaseConnection,
-    cache: &Cache<String, String>,
+    cache: &CacheManager,
     email: String,
 ) -> Result<(), BackendError> {
     if user::service::find_user(db, entities::users::Column::Email, &email)
@@ -76,14 +76,14 @@ pub async fn verify_email(
 
     use rand::Rng;
     let code = rand::rng().random_range(100000..=999999);
-    cache.insert(email.clone(), code.to_string()).await;
+    cache.set(email.clone(), code.to_string()).await?;
     email::service::send_verify_email(email, code).await?;
 
     Ok(())
 }
 
 pub async fn refresh(
-    cache: &Cache<String, String>,
+    cache: &CacheManager,
     refresh_token: String,
 ) -> Result<(String, String), BackendError> {
     let user = check_and_remove_token(cache, refresh_token).await?;
@@ -92,13 +92,13 @@ pub async fn refresh(
         .map_err(|_| BackendError::InternalError)
 }
 
-pub async fn logout(cache: &Cache<String, String>, refresh_token: String) {
+pub async fn logout(cache: &CacheManager, refresh_token: String) {
     let _ = check_and_remove_token(cache, refresh_token).await;
 }
 
 pub async fn reset_password(
     db: &DatabaseConnection,
-    cache: &Cache<String, String>,
+    cache: &CacheManager,
     email: String,
 ) -> Result<(), BackendError> {
     use rand::RngCore;
@@ -109,9 +109,9 @@ pub async fn reset_password(
 
     let mut bytes = [0u8; 16];
     rand::rng().fill_bytes(&mut bytes);
-    let reset_token = hex::encode(bytes);
+    let reset_token = uuid::Uuid::from_bytes(bytes).to_string();
 
-    cache.insert(reset_token.clone(), email.clone()).await;
+    cache.set(reset_token.clone(), email.clone()).await?;
     email::service::send_reset_password_email(email, reset_token).await?;
 
     Ok(())
@@ -119,12 +119,12 @@ pub async fn reset_password(
 
 pub async fn change_password(
     db: &DatabaseConnection,
-    cache: &Cache<String, String>,
+    cache: &CacheManager,
     reset_token: String,
     password: String,
 ) -> Result<(), BackendError> {
     let email = cache
-        .get(&reset_token)
+        .get(reset_token.clone())
         .await
         .ok_or(BackendError::BadRequest(
             "Invalid or expired reset token".into(),
@@ -142,7 +142,7 @@ pub async fn change_password(
     .await
     .map_err(|_| BackendError::InternalError)?;
 
-    cache.invalidate(&reset_token).await;
+    cache.delete(reset_token).await?;
 
     Ok(())
 }
@@ -175,17 +175,17 @@ fn create_access_token(uuid: String, login: String) -> Result<String, BackendErr
     .map_err(|_| BackendError::InternalError)
 }
 
-async fn create_refresh_token(cache: &Cache<String, String>, access_token: String) -> String {
+async fn create_refresh_token(cache: &CacheManager, access_token: String) -> String {
     let refresh_token = uuid::Uuid::new_v4().to_string();
-    cache
-        .insert(format!("refresh_token:{refresh_token}"), access_token)
+    let _ = cache
+        .set(format!("refresh_token:{refresh_token}"), access_token)
         .await;
 
     refresh_token
 }
 
 async fn generate_tokens_pair(
-    cache: &Cache<String, String>,
+    cache: &CacheManager,
     uuid: String,
     login: String,
 ) -> Result<(String, String), BackendError> {
@@ -214,27 +214,32 @@ pub fn set_refresh_token_cookie(
     jar.add(cookie)
 }
 
-async fn get_refresh_token_data(
-    cache: &Cache<String, String>,
+async fn get_refresh_token_data(cache: &CacheManager, refresh_token: String) -> Option<String> {
+    cache.get(format!("refresh_token:{refresh_token}")).await
+}
+
+async fn add_token_to_black_list(
+    cache: &CacheManager,
+    access_token: String,
+) -> Result<(), BackendError> {
+    cache
+        .set(format!("access_token:{access_token}"), 1.to_string())
+        .await
+        .map_err(|_| BackendError::InternalError)
+}
+
+async fn delete_refresh_token(
+    cache: &CacheManager,
     refresh_token: String,
-) -> Option<String> {
-    cache.get(&format!("refresh_token:{refresh_token}")).await
-}
-
-async fn add_token_to_black_list(cache: &Cache<String, String>, access_token: String) {
+) -> Result<(), BackendError> {
     cache
-        .insert(format!("access_token:{access_token}"), 1.to_string())
+        .delete(format!("refresh_token:{refresh_token}"))
         .await
+        .map_err(|_| BackendError::InternalError)
 }
 
-async fn delete_refresh_token(cache: &Cache<String, String>, refresh_token: String) {
-    cache
-        .invalidate(&format!("refresh_token:{refresh_token}"))
-        .await
-}
-
-pub async fn check_and_remove_token(
-    cache: &Cache<String, String>,
+async fn check_and_remove_token(
+    cache: &CacheManager,
     refresh_token: String,
 ) -> Result<auth::jwt::JwtPayload, BackendError> {
     let access_token = get_refresh_token_data(cache, refresh_token.clone())
@@ -265,10 +270,10 @@ pub async fn check_and_remove_token(
     let ttl = token.claims.exp.saturating_sub(now);
 
     if ttl > 0 {
-        add_token_to_black_list(cache, access_token.clone()).await;
+        add_token_to_black_list(cache, access_token.clone()).await?;
     }
 
-    delete_refresh_token(cache, refresh_token).await;
+    delete_refresh_token(cache, refresh_token).await?;
 
     Ok(auth::jwt::JwtPayload {
         uuid: token.claims.uuid,

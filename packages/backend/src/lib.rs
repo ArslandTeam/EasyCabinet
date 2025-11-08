@@ -1,3 +1,4 @@
+use crate::api::cache_manager::CacheManager;
 use axum_extra::extract::cookie::Key;
 use std::env;
 mod api;
@@ -9,18 +10,20 @@ pub async fn start_backend() {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL key not set in .env");
     let host = env::var("HOST").expect("HOST key not set in .env");
     let port = env::var("PORT").expect("PORT key not set in .env");
+
+    // TODO Перенести в test
     //"RUST_LOG=debug" or "RUST_LOG=info"
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .or_else(|_| {
-                    tracing_subscriber::EnvFilter::try_new(
-                        "axum_tracing_example=error,tower_http=warn",
-                    )
-                })
-                .unwrap(),
-        )
-        .init();
+    // tracing_subscriber::fmt()
+    //     .with_env_filter(
+    //         tracing_subscriber::EnvFilter::try_from_default_env()
+    //             .or_else(|_| {
+    //                 tracing_subscriber::EnvFilter::try_new(
+    //                     "axum_tracing_example=error,tower_http=warn",
+    //                 )
+    //             })
+    //             .unwrap(),
+    //     )
+    //     .init();
 
     use migration::MigratorTrait;
 
@@ -29,11 +32,7 @@ pub async fn start_backend() {
         .expect("Database connection failed");
     migration::Migrator::up(&conn, None).await.unwrap();
 
-    // TODO and FIX сделать для каждого кеша разное время жизни
-    let cache = moka::future::Cache::builder()
-        .max_capacity(15000)
-        .time_to_live(std::time::Duration::from_secs(2592000))
-        .build();
+    let cache = CacheManager::cache_init().await;
 
     let key = Key::from(
         env::var("COOKIES_SECRET")
@@ -112,7 +111,7 @@ fn init_router(state: AppState) -> axum::Router {
 #[derive(Clone)]
 struct AppState {
     conn: sea_orm::DatabaseConnection,
-    cache: moka::future::Cache<String, String>,
+    cache: CacheManager,
     key: Key,
 }
 

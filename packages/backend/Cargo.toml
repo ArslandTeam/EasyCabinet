@@ -7,7 +7,7 @@ edition = "2024"
 axum = { version = "0.8.6", features = ["multipart"] }
 axum-extra = { version = "0.10", features = ["cookie", "cookie-signed"] }
 jsonwebtoken = "9"
-moka = { version = "0.12.10", features = ["future"] } # кеш хранится в RAM памяти
+moka = { version = "0.12.10", features = ["future"] }
 sea-orm = { version = "1.1", features = ["sqlx-mysql", "runtime-tokio-rustls", "macros"] } # надо будет обновится потом
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -16,8 +16,6 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 migration = { path = "./migration" }
 dotenvy = "0.15"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bcrypt = "0.17.1"
 http = "1"
 uuid = { version = "1.18", features = ["v4"] }
@@ -27,10 +25,13 @@ image = "0.25"
 lettre = "0.11.19"
 minijinja = "2.12.0"
 rand = "0.9.2"
-hex = "0.4.3"
 validator = { version = "0.20", features = ["derive"] }
 regex = "1.12.2"
-redis = "0.32.7"
+redis = { version = "0.32.7", features = ["tokio-comp", "cache-aio"] }
+
+[dev-dependencies]
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [profile.release]
 codegen-units = 1
