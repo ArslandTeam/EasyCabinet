@@ -11,19 +11,21 @@ pub async fn start_backend() {
     let host = env::var("HOST").expect("HOST key not set in .env");
     let port = env::var("PORT").expect("PORT key not set in .env");
 
-    // TODO Перенести в test
-    //"RUST_LOG=debug" or "RUST_LOG=info"
-    // tracing_subscriber::fmt()
-    //     .with_env_filter(
-    //         tracing_subscriber::EnvFilter::try_from_default_env()
-    //             .or_else(|_| {
-    //                 tracing_subscriber::EnvFilter::try_new(
-    //                     "axum_tracing_example=error,tower_http=warn",
-    //                 )
-    //             })
-    //             .unwrap(),
-    //     )
-    //     .init();
+    #[cfg(debug_assertions)]
+    {
+        //"RUST_LOG=debug" or "RUST_LOG=info"
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .or_else(|_| {
+                        tracing_subscriber::EnvFilter::try_new(
+                            "axum_tracing_example=error,tower_http=warn",
+                        )
+                    })
+                    .unwrap(),
+            )
+            .init();
+    }
 
     use migration::MigratorTrait;
 

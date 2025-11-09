@@ -3,13 +3,35 @@ use redis::AsyncCommands;
 
 #[derive(Clone)]
 enum CacheType {
-    Local(moka::future::Cache<String, String>),
+    Local(moka::future::Cache<String, MokaCacheTTL>),
     Redis(redis::aio::MultiplexedConnection),
 }
 
 #[derive(Clone)]
 pub struct CacheManager {
     cache_type: CacheType,
+}
+
+#[derive(Clone)]
+pub struct MokaCacheTTL {
+    value: String,
+    ttl: std::time::Duration,
+}
+
+struct PerEntryExpiry;
+
+/// Это реализация кастомного TTL для каждого элемента в кеше.
+/// Пример взят с документации moka
+/// - <https://docs.rs/moka/latest/moka/future/struct.Cache.html#per-entry-expiration-policy>
+impl moka::Expiry<String, MokaCacheTTL> for PerEntryExpiry {
+    fn expire_after_create(
+        &self,
+        _key: &String,
+        value: &MokaCacheTTL,
+        _current_time: std::time::Instant,
+    ) -> Option<std::time::Duration> {
+        Some(value.ttl)
+    }
 }
 
 /// Инициализирует тип кеша.
@@ -23,7 +45,7 @@ impl CacheManager {
             "local" => {
                 let cache = moka::future::Cache::builder()
                     .max_capacity(1000)
-                    .time_to_live(std::time::Duration::from_secs(2592000))
+                    .expire_after(PerEntryExpiry)
                     .build();
                 CacheManager {
                     cache_type: CacheType::Local(cache),
@@ -44,16 +66,24 @@ impl CacheManager {
         }
     }
 
-    pub async fn set(&self, key: String, value: String) -> Result<(), BackendError> {
+    pub async fn set(&self, key: String, value: String, ttl: u64) -> Result<(), BackendError> {
         match &self.cache_type {
             CacheType::Local(cache) => {
-                cache.insert(key, value).await;
+                cache
+                    .insert(
+                        key,
+                        MokaCacheTTL {
+                            value,
+                            ttl: std::time::Duration::from_secs(ttl),
+                        },
+                    )
+                    .await;
                 Ok(())
             }
             CacheType::Redis(conn) => {
                 let mut cache = conn.clone();
                 cache
-                    .set(key, value)
+                    .set_ex(key, value, ttl)
                     .await
                     .map_err(|_| BackendError::InternalError)
             }
@@ -62,7 +92,7 @@ impl CacheManager {
 
     pub async fn get(&self, key: String) -> Option<String> {
         match &self.cache_type {
-            CacheType::Local(cache) => cache.get(&key).await,
+            CacheType::Local(cache) => cache.get(&key).await.map(|v| v.value),
             CacheType::Redis(conn) => {
                 let mut cache = conn.clone();
                 cache.get(&key).await.ok()

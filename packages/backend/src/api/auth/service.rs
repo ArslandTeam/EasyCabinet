@@ -46,17 +46,22 @@ pub async fn register(
     cache: &CacheManager,
     data: auth::dto::RequestRegisterDTO,
 ) -> Result<(), BackendError> {
-    if cache.get(data.email.clone()).await != Some(data.code.to_string()) {
-        return Err(BackendError::BadRequest("Invalid email code".into()));
+    if cache.get(format!("verify_code_email:{}", data.email)).await != Some(data.code.to_string()) {
+        return Err(BackendError::BadRequest(
+            "Invalid or expired email code".into(),
+        ));
     }
+
+    cache
+        .delete(format!("verify_code_email:{}", data.email))
+        .await?;
+
     let hash_password = generate_hash_password(data.password);
 
     // TODO надо будет болле правильно обрабатывать ошибку
     user::service::create_user(db, data.login, hash_password, data.email)
         .await
         .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
-
-    cache.delete(data.code.to_string()).await?;
 
     Ok(())
 }
@@ -76,7 +81,13 @@ pub async fn verify_email(
 
     use rand::Rng;
     let code = rand::rng().random_range(100000..=999999);
-    cache.set(email.clone(), code.to_string()).await?;
+    cache
+        .set(
+            format!("verify_code_email:{}", email),
+            code.to_string(),
+            900,
+        )
+        .await?;
     email::service::send_verify_email(email, code).await?;
 
     Ok(())
@@ -111,7 +122,9 @@ pub async fn reset_password(
     rand::rng().fill_bytes(&mut bytes);
     let reset_token = uuid::Uuid::from_bytes(bytes).to_string();
 
-    cache.set(reset_token.clone(), email.clone()).await?;
+    cache
+        .set(format!("reset_token:{reset_token}"), email.clone(), 1800)
+        .await?;
     email::service::send_reset_password_email(email, reset_token).await?;
 
     Ok(())
@@ -124,7 +137,7 @@ pub async fn change_password(
     password: String,
 ) -> Result<(), BackendError> {
     let email = cache
-        .get(reset_token.clone())
+        .get(format!("reset_token:{reset_token}"))
         .await
         .ok_or(BackendError::BadRequest(
             "Invalid or expired reset token".into(),
@@ -142,7 +155,7 @@ pub async fn change_password(
     .await
     .map_err(|_| BackendError::InternalError)?;
 
-    cache.delete(reset_token).await?;
+    cache.delete(format!("reset_token:{reset_token}")).await?;
 
     Ok(())
 }
@@ -178,7 +191,11 @@ fn create_access_token(uuid: String, login: String) -> Result<String, BackendErr
 async fn create_refresh_token(cache: &CacheManager, access_token: String) -> String {
     let refresh_token = uuid::Uuid::new_v4().to_string();
     let _ = cache
-        .set(format!("refresh_token:{refresh_token}"), access_token)
+        .set(
+            format!("refresh_token:{refresh_token}"),
+            access_token,
+            2592000,
+        )
         .await;
 
     refresh_token
@@ -218,12 +235,13 @@ async fn get_refresh_token_data(cache: &CacheManager, refresh_token: String) -> 
     cache.get(format!("refresh_token:{refresh_token}")).await
 }
 
+// TODO убрать или переписать
 async fn add_token_to_black_list(
     cache: &CacheManager,
     access_token: String,
 ) -> Result<(), BackendError> {
     cache
-        .set(format!("access_token:{access_token}"), 1.to_string())
+        .set(format!("access_token:{access_token}"), 1.to_string(), 300)
         .await
         .map_err(|_| BackendError::InternalError)
 }
