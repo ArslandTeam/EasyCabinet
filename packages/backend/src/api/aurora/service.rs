@@ -18,7 +18,7 @@ pub async fn auth(
         entities::users::Column::AccessToken,
         &access_token,
         entities::users::Column::Login,
-        login,
+        &login,
     )
     .await
     .map_err(|_| BackendError::InternalError)?;
@@ -49,7 +49,7 @@ pub async fn join(
                 entities::users::Column::ServerId,
                 &body.server_id,
                 entities::users::Column::Uuid,
-                body.user_uuid,
+                &body.user_uuid,
             )
             .await
             .map_err(|_| BackendError::InternalError)?;

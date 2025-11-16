@@ -35,7 +35,7 @@ pub async fn update_user(
     column: users::Column,
     value: &str,
     column_filter: users::Column,
-    filter: String,
+    filter: &str,
 ) -> Result<(), DbErr> {
     users::Entity::update_many()
         .col_expr(column, Expr::value(value))
