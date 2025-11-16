@@ -13,7 +13,7 @@ pub async fn authentication(
     let (access_token, refresh_token) =
         service::authentication(&state.conn, &state.cache, payload.login, payload.password).await?;
     let jar = service::set_refresh_token_cookie(jar, refresh_token);
-    let jar = jwt::set_access_token(jar, access_token.clone());
+    let jar = jwt::set_access_token(jar, access_token);
     Ok((StatusCode::OK, jar))
 }
 
@@ -46,7 +46,7 @@ pub async fn refresh(
     let (access_token, refresh_token) = service::refresh(&state.cache, old_refresh_token).await?;
 
     let jar = service::set_refresh_token_cookie(jar, refresh_token);
-    let jar = jwt::set_access_token(jar, access_token.clone());
+    let jar = jwt::set_access_token(jar, access_token);
     Ok((StatusCode::OK, jar))
 }
 

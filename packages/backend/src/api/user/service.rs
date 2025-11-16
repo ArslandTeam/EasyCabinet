@@ -33,7 +33,7 @@ pub async fn find_users(
 pub async fn update_user(
     db: &DatabaseConnection,
     column: users::Column,
-    value: String,
+    value: &str,
     column_filter: users::Column,
     filter: String,
 ) -> Result<(), DbErr> {
@@ -52,7 +52,7 @@ pub async fn create_user(
     email: String,
 ) -> Result<InsertResult<users::ActiveModel>, DbErr> {
     let user = users::ActiveModel {
-        uuid: ActiveValue::Set(Some(uuid::Uuid::new_v4().to_string())),
+        uuid: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
         login: ActiveValue::Set(login),
         password: ActiveValue::Set(password),
         email: ActiveValue::Set(email),

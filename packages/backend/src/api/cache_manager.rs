@@ -4,7 +4,7 @@ use redis::AsyncCommands;
 #[derive(Clone)]
 enum CacheType {
     Local(moka::future::Cache<String, MokaCacheTTL>),
-    Redis(redis::aio::MultiplexedConnection),
+    Redis(std::sync::Arc<tokio::sync::Mutex<redis::aio::MultiplexedConnection>>),
 }
 
 #[derive(Clone)]
@@ -59,21 +59,23 @@ impl CacheManager {
                     .await
                     .expect("Error connecting to Redis");
                 CacheManager {
-                    cache_type: CacheType::Redis(conn),
+                    cache_type: CacheType::Redis(std::sync::Arc::new(tokio::sync::Mutex::new(
+                        conn,
+                    ))),
                 }
             }
             _ => panic!("CACHE manager not correct set"),
         }
     }
 
-    pub async fn set(&self, key: String, value: String, ttl: u64) -> Result<(), BackendError> {
+    pub async fn set(&self, key: &str, value: &str, ttl: u64) -> Result<(), BackendError> {
         match &self.cache_type {
             CacheType::Local(cache) => {
                 cache
                     .insert(
-                        key,
+                        key.to_string(),
                         MokaCacheTTL {
-                            value,
+                            value: value.to_string(),
                             ttl: std::time::Duration::from_secs(ttl),
                         },
                     )
@@ -81,35 +83,34 @@ impl CacheManager {
                 Ok(())
             }
             CacheType::Redis(conn) => {
-                let mut cache = conn.clone();
-                cache
-                    .set_ex(key, value, ttl)
+                let mut conn = conn.lock().await;
+                conn.set_ex(key, value, ttl)
                     .await
                     .map_err(|_| BackendError::InternalError)
             }
         }
     }
 
-    pub async fn get(&self, key: String) -> Option<String> {
+    pub async fn get(&self, key: &str) -> Option<String> {
         match &self.cache_type {
-            CacheType::Local(cache) => cache.get(&key).await.map(|v| v.value),
+            CacheType::Local(cache) => cache.get(key).await.map(|v| v.value),
             CacheType::Redis(conn) => {
-                let mut cache = conn.clone();
-                cache.get(&key).await.ok()
+                let mut conn = conn.lock().await;
+                conn.get(key).await.ok()
             }
         }
     }
 
-    pub async fn delete(&self, key: String) -> Result<(), BackendError> {
+    pub async fn delete(&self, key: &str) -> Result<(), BackendError> {
         match &self.cache_type {
             CacheType::Local(cache) => {
-                cache.invalidate(&key).await;
+                cache.invalidate(key).await;
                 Ok(())
             }
             CacheType::Redis(conn) => {
-                let mut cache = conn.clone();
-                let _: usize = cache
-                    .del(&key)
+                let mut conn = conn.lock().await;
+                let _: usize = conn
+                    .del(key)
                     .await
                     .map_err(|_| BackendError::InternalError)?;
                 Ok(())

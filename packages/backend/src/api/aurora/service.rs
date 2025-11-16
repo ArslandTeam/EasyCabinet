@@ -1,4 +1,3 @@
-// TODO добавить в ответ json строки со скинами
 use crate::{
     BackendError,
     api::{aurora, auth, entities, user},
@@ -17,7 +16,7 @@ pub async fn auth(
     user::service::update_user(
         db,
         entities::users::Column::AccessToken,
-        access_token.clone(),
+        &access_token,
         entities::users::Column::Login,
         login,
     )
@@ -48,7 +47,7 @@ pub async fn join(
             user::service::update_user(
                 db,
                 entities::users::Column::ServerId,
-                body.server_id,
+                &body.server_id,
                 entities::users::Column::Uuid,
                 body.user_uuid,
             )
@@ -106,7 +105,7 @@ pub async fn profiles(
 ) -> Result<Json<Value>, BackendError> {
     let users = user::service::find_users(db, entities::users::Column::Login, body.usernames)
         .await
-        .map_err(|_| BackendError::InternalError)?;
+        .map_err(|_| BackendError::BadRequestAurora("Users not found".into()))?;
 
     Ok(Json(
         users

@@ -1,4 +1,4 @@
-// FIX старые access_token токены остаются в кеше. Нужно убрать большое количество .clone()
+// TODO изменить концепцию входа в аккаунт (реализовать сессии).
 use crate::{
     BackendError,
     api::{auth, cache_manager::CacheManager, email, entities, user},
@@ -36,7 +36,7 @@ pub async fn authentication(
     password: String,
 ) -> Result<(String, String), BackendError> {
     let user = verify_auth(db, &login, password).await?;
-    generate_tokens_pair(cache, user.uuid.unwrap(), user.login)
+    generate_tokens_pair(cache, user.uuid, user.login)
         .await
         .map_err(|_| BackendError::InternalError)
 }
@@ -46,14 +46,18 @@ pub async fn register(
     cache: &CacheManager,
     data: auth::dto::RequestRegisterDTO,
 ) -> Result<(), BackendError> {
-    if cache.get(format!("verify_code_email:{}", data.email)).await != Some(data.code.to_string()) {
+    if cache
+        .get(&format!("verify_code_email:{}", data.email))
+        .await
+        != Some(data.code.to_string())
+    {
         return Err(BackendError::BadRequest(
             "Invalid or expired email code".into(),
         ));
     }
 
     cache
-        .delete(format!("verify_code_email:{}", data.email))
+        .delete(&format!("verify_code_email:{}", data.email))
         .await?;
 
     let hash_password = generate_hash_password(data.password);
@@ -83,8 +87,8 @@ pub async fn verify_email(
     let code = rand::rng().random_range(100000..=999999);
     cache
         .set(
-            format!("verify_code_email:{}", email),
-            code.to_string(),
+            &format!("verify_code_email:{}", email),
+            &code.to_string(),
             900,
         )
         .await?;
@@ -123,7 +127,7 @@ pub async fn reset_password(
     let reset_token = uuid::Uuid::from_bytes(bytes).to_string();
 
     cache
-        .set(format!("reset_token:{reset_token}"), email.clone(), 1800)
+        .set(&format!("reset_token:{reset_token}"), &email, 1800)
         .await?;
     email::service::send_reset_password_email(email, reset_token).await?;
 
@@ -137,38 +141,80 @@ pub async fn change_password(
     password: String,
 ) -> Result<(), BackendError> {
     let email = cache
-        .get(format!("reset_token:{reset_token}"))
+        .get(&format!("reset_token:{reset_token}"))
         .await
         .ok_or(BackendError::BadRequest(
             "Invalid or expired reset token".into(),
         ))?;
 
-    let hash_password = generate_hash_password(password);
+    let user = user::service::find_user(db, entities::users::Column::Email, &email)
+        .await
+        .map_err(|_| BackendError::InternalError)?
+        .ok_or(BackendError::BadRequest("User not found".into()))?;
 
+    let hash_password = generate_hash_password(password);
     user::service::update_user(
         db,
         entities::users::Column::Password,
-        hash_password,
+        &hash_password,
         entities::users::Column::Email,
-        email,
+        email.clone(),
     )
     .await
     .map_err(|_| BackendError::InternalError)?;
 
-    cache.delete(format!("reset_token:{reset_token}")).await?;
+    cache.delete(&format!("reset_token:{reset_token}")).await?;
+
+    let session_key = format!("session_id:{}", user.uuid);
+    let current_ver = cache
+        .get(&session_key)
+        .await
+        .unwrap_or_else(|| "1".into())
+        .parse::<u64>()
+        .unwrap_or(1);
+
+    cache
+        .set(&session_key, &(current_ver + 1).to_string(), 2592000)
+        .await?;
 
     Ok(())
 }
 
-fn create_access_token(uuid: String, login: String) -> Result<String, BackendError> {
+async fn generate_tokens_pair(
+    cache: &CacheManager,
+    uuid: String,
+    login: String,
+) -> Result<(String, String), BackendError> {
+    let session_id_key = format!("session_id:{uuid}");
+
+    let session_id = cache
+        .get(&session_id_key)
+        .await
+        .unwrap_or_else(|| "1".into())
+        .parse()
+        .unwrap_or(1);
+
+    let new_session_id = session_id + 1;
+
+    cache
+        .set(&session_id_key, &new_session_id.to_string(), 2592000)
+        .await?;
+
+    let access_token = create_access_token(uuid, login, new_session_id)?;
+    let refresh_token = create_refresh_token(cache, &access_token).await;
+    Ok((access_token, refresh_token))
+}
+
+fn create_access_token(uuid: String, login: String, ver: u64) -> Result<String, BackendError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
 
     let claims = auth::jwt::JwtPayload {
-        uuid: uuid,
-        login: login,
+        uuid,
+        login,
+        ver,
         iat: now,
         exp: now
             + env::var("JWT_EXPIRES_IN")
@@ -188,27 +234,17 @@ fn create_access_token(uuid: String, login: String) -> Result<String, BackendErr
     .map_err(|_| BackendError::InternalError)
 }
 
-async fn create_refresh_token(cache: &CacheManager, access_token: String) -> String {
+async fn create_refresh_token(cache: &CacheManager, access_token: &str) -> String {
     let refresh_token = uuid::Uuid::new_v4().to_string();
     let _ = cache
         .set(
-            format!("refresh_token:{refresh_token}"),
+            &format!("refresh_token:{refresh_token}"),
             access_token,
             2592000,
         )
         .await;
 
     refresh_token
-}
-
-async fn generate_tokens_pair(
-    cache: &CacheManager,
-    uuid: String,
-    login: String,
-) -> Result<(String, String), BackendError> {
-    let access_token = create_access_token(uuid, login)?;
-    let refresh_token = create_refresh_token(cache, access_token.clone()).await;
-    Ok((access_token, refresh_token))
 }
 
 pub fn set_refresh_token_cookie(
@@ -218,6 +254,7 @@ pub fn set_refresh_token_cookie(
     let cookie = cookie_manager::cookie::Cookie::build(("refresh_token", refresh_token))
         .path("/auth")
         .http_only(true)
+        // .domain(env::var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN key not set in .env"))
         .same_site(cookie_manager::cookie::SameSite::Lax)
         .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
         .max_age(time::Duration::seconds(
@@ -231,19 +268,8 @@ pub fn set_refresh_token_cookie(
     jar.add(cookie)
 }
 
-async fn get_refresh_token_data(cache: &CacheManager, refresh_token: String) -> Option<String> {
-    cache.get(format!("refresh_token:{refresh_token}")).await
-}
-
-// TODO убрать или переписать
-async fn add_token_to_black_list(
-    cache: &CacheManager,
-    access_token: String,
-) -> Result<(), BackendError> {
-    cache
-        .set(format!("access_token:{access_token}"), 1.to_string(), 300)
-        .await
-        .map_err(|_| BackendError::InternalError)
+async fn get_refresh_token_data(cache: &CacheManager, refresh_token: &str) -> Option<String> {
+    cache.get(&format!("refresh_token:{refresh_token}")).await
 }
 
 async fn delete_refresh_token(
@@ -251,7 +277,7 @@ async fn delete_refresh_token(
     refresh_token: String,
 ) -> Result<(), BackendError> {
     cache
-        .delete(format!("refresh_token:{refresh_token}"))
+        .delete(&format!("refresh_token:{refresh_token}"))
         .await
         .map_err(|_| BackendError::InternalError)
 }
@@ -260,14 +286,12 @@ async fn check_and_remove_token(
     cache: &CacheManager,
     refresh_token: String,
 ) -> Result<auth::jwt::JwtPayload, BackendError> {
-    let access_token = get_refresh_token_data(cache, refresh_token.clone())
+    let access_token = get_refresh_token_data(cache, &refresh_token)
         .await
         .ok_or(BackendError::BadRequest("Token not found".into()))?;
 
     let mut validation = Validation::default();
-    validation.validate_nbf = false;
     validation.validate_exp = false;
-    validation.required_spec_claims.clear();
 
     let token = decode::<auth::jwt::JwtPayload>(
         &access_token,
@@ -280,15 +304,15 @@ async fn check_and_remove_token(
     )
     .map_err(|_| BackendError::BadRequest("Invalid token".into()))?;
 
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    let ttl = token.claims.exp.saturating_sub(now);
-
-    if ttl > 0 {
-        add_token_to_black_list(cache, access_token.clone()).await?;
+    if token.claims.ver
+        != cache
+            .get(&format!("session_id:{}", token.claims.uuid))
+            .await
+            .unwrap_or("1".into())
+            .parse()
+            .unwrap_or(1)
+    {
+        return Err(BackendError::BadRequest("Session expired".into()));
     }
 
     delete_refresh_token(cache, refresh_token).await?;
@@ -296,6 +320,7 @@ async fn check_and_remove_token(
     Ok(auth::jwt::JwtPayload {
         uuid: token.claims.uuid,
         login: token.claims.login,
+        ver: token.claims.ver,
         iat: token.claims.iat,
         exp: token.claims.exp,
     })
