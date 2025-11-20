@@ -19,7 +19,7 @@ impl MigrationTrait for Migration {
                         ColumnDef::new(Users::Uuid)
                             .string_len(36)
                             .unique_key()
-                            .null(),
+                            .not_null(),
                     )
                     .col(
                         ColumnDef::new(Users::Email)

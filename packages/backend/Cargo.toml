@@ -30,6 +30,8 @@ regex = "1.12.2"
 redis = { version = "0.32.7", features = ["tokio-comp", "cache-aio"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+aws-sdk-s3 = "1.112.0"
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
 
 [profile.release]
 codegen-units = 1

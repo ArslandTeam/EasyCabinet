@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct JwtPayload {
     pub uuid: String,
     pub login: String,
+    pub ver: u64,
     pub iat: u64,
     pub exp: u64,
 }
@@ -15,8 +16,14 @@ pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCoo
     let cookie = Cookie::build(("access_token", access_token))
         .path("/")
         .http_only(true)
+        // .domain(std::env::var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN key not set in .env"))
         .same_site(SameSite::Lax)
-        .max_age(time::Duration::seconds(std::env::var("JWT_EXPIRES_IN").unwrap().parse::<i64>().unwrap_or(900)))
+        .max_age(time::Duration::seconds(
+            std::env::var("JWT_EXPIRES_IN")
+                .unwrap()
+                .parse::<i64>()
+                .unwrap_or(900),
+        ))
         .secure(std::env::var("COOKIE_SECURE").unwrap_or_default() == "true")
         .build();
 
