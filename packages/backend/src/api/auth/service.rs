@@ -279,14 +279,14 @@ pub fn set_refresh_token_cookie(
     let cookie = cookie_manager::cookie::Cookie::build(("refresh_token", refresh_token))
         .path("/auth")
         .http_only(true)
-        // .domain(env::var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN key not set in .env"))
+        .domain(env::var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN key not set in .env"))
         .same_site(cookie_manager::cookie::SameSite::Lax)
         .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
         .max_age(time::Duration::seconds(
             env::var("COOKIE_EXPIRES_IN")
-                .unwrap()
+                .expect("COOKIE_EXPIRES_IN key not set in .env")
                 .parse()
-                .unwrap_or(2592000),
+                .expect("COOKIE_EXPIRES_IN error parcing (64 bit!!!)"),
         ))
         .build();
 
@@ -353,9 +353,9 @@ async fn check_and_remove_token(
 }
 
 fn generate_hash_password(password: String) -> String {
-    bcrypt::hash(password, 10).expect("Error hash bcrypt")
+    bcrypt::hash(password, 10).unwrap()
 }
 
 fn check_password(password: String, hash: &str) -> bool {
-    bcrypt::verify(password, hash).expect("Error verify bcrypt")
+    bcrypt::verify(password, hash).unwrap()
 }

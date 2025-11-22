@@ -61,10 +61,7 @@ fn init_router(state: AppState) -> axum::Router {
             "/",
             get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
         )
-        .route(
-            "/auth/authentication",
-            post(api::auth::controller::authentication),
-        )
+        .route("/auth/login", post(api::auth::controller::authentication))
         .route("/auth/register", post(api::auth::controller::register))
         .route(
             "/auth/verify-email",

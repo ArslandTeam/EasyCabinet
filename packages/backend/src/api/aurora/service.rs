@@ -11,7 +11,9 @@ pub async fn auth(
     login: String,
     password: String,
 ) -> Result<Json<Value>, BackendError> {
-    let user = auth::service::verify_auth(db, &login, password).await?;
+    let user = auth::service::verify_auth(db, &login, password)
+        .await
+        .map_err(|_| BackendError::BadRequestAurora("Incorecrt password or login".into()))?;
     let access_token = uuid::Uuid::new_v4().to_string();
     user::service::update_user(
         db,

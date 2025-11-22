@@ -16,13 +16,13 @@ pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCoo
     let cookie = Cookie::build(("access_token", access_token))
         .path("/")
         .http_only(true)
-        // .domain(std::env::var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN key not set in .env"))
+        .domain(std::env::var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN key not set in .env"))
         .same_site(SameSite::Lax)
         .max_age(time::Duration::seconds(
             std::env::var("JWT_EXPIRES_IN")
-                .unwrap()
+                .expect("JWT_EXPIRES_IN key not set in .env")
                 .parse::<i64>()
-                .unwrap_or(900),
+                .expect("JWT_EXPIRES_IN error parcing (i64 bit !!!)"),
         ))
         .secure(std::env::var("COOKIE_SECURE").unwrap_or_default() == "true")
         .build();
