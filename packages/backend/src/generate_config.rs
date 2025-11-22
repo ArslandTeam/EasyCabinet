@@ -16,7 +16,7 @@ COOKIES_SECRET="secret"
 COOKIE_EXPIRES_IN=2592000
 
 CACHE="local"
-REDIS="redis://localhost:6379"
+REDIS_URL="redis://localhost:6379"
 
 DATABASE_URL="mysql://username:password@host:port/database"
 
