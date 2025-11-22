@@ -46,7 +46,7 @@ export async function verifyEmail(email: string) {
 export async function authentication(login: string, password: string) {
   try {
     const { data } = await axios.post(
-      "auth/authentication",
+      "auth/login",
       { login, password },
       { withCredentials: true },
     );
