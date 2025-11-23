@@ -1,10 +1,8 @@
-use crate::BackendError;
+use crate::{BackendError, generate_config::CONFIG};
 use lettre::{Message, SmtpTransport, Transport, message::header::ContentType};
 
 async fn smtp_build() -> Result<SmtpTransport, BackendError> {
-    let url = std::env::var("SMTP").expect("SMTP key not set in .env");
-
-    let mailer = SmtpTransport::from_url(&url)
+    let mailer = SmtpTransport::from_url(&CONFIG.smpt)
         .map_err(|_| BackendError::InternalError)?
         .build();
 
@@ -13,12 +11,7 @@ async fn smtp_build() -> Result<SmtpTransport, BackendError> {
 
 async fn send_email(to: String, subject: String, html: String) -> Result<(), BackendError> {
     let message = Message::builder()
-        .from(
-            std::env::var("EMAIL_FROM")
-                .expect("EMAIL_FROM key not set in .env")
-                .parse()
-                .map_err(|_| BackendError::InternalError)?,
-        )
+        .from(CONFIG.email_from.parse().expect("Error parcing email_from"))
         .to(to.parse().map_err(|_| BackendError::InternalError)?)
         .subject(subject)
         .header(ContentType::TEXT_HTML)
@@ -48,7 +41,6 @@ pub async fn send_verify_email(email: String, code: u32) -> Result<(), BackendEr
 }
 
 fn render_reset_password_template(reset_token: String) -> String {
-    let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL key not set in .env");
     let mut env = minijinja::Environment::new();
     env.add_template(
         "reset_password.html",
@@ -58,14 +50,13 @@ fn render_reset_password_template(reset_token: String) -> String {
     let template = env.get_template("reset_password.html").unwrap();
     template
         .render(minijinja::context! {
-            frontend_url => frontend_url,
+            frontend_url => &CONFIG.frontend_url,
             reset_token => reset_token
         })
         .unwrap()
 }
 
 fn render_verify_email_template(code: u32) -> String {
-    let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL key not set in .env");
     let mut env = minijinja::Environment::new();
     env.add_template(
         "verify_email.html",
@@ -75,7 +66,7 @@ fn render_verify_email_template(code: u32) -> String {
     let template = env.get_template("verify_email.html").unwrap();
     template
         .render(minijinja::context! {
-            frontend_url => frontend_url,
+            frontend_url => &CONFIG.frontend_url,
             code => code
         })
         .unwrap()

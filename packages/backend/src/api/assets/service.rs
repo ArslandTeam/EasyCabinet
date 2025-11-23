@@ -1,5 +1,5 @@
 // TODO переписать
-use crate::{BackendError, api::files};
+use crate::{BackendError, api::files::service::files_service};
 use image::{ImageFormat, ImageReader};
 use std::io::Cursor;
 
@@ -9,17 +9,16 @@ pub enum AssetType {
     Cape,
 }
 
-pub fn format_url(asset_type: AssetType, hash: &str) -> Option<String> {
+pub async fn format_url(asset_type: AssetType, hash: &str) -> Option<String> {
     if hash.is_empty() {
         return None;
     }
-
     let scope = match asset_type {
         AssetType::Skin => "skin",
         AssetType::Cape => "cape",
     };
 
-    Some(files::service::format_url(scope, hash))
+    Some(files_service().await.format_url(scope, hash))
 }
 
 pub async fn upload_image(asset_type: AssetType, image: &[u8]) -> Result<String, BackendError> {
@@ -34,7 +33,9 @@ pub async fn upload_image(asset_type: AssetType, image: &[u8]) -> Result<String,
         AssetType::Cape => "cape",
     };
 
-    files::service::save_file(image, scope)
+    files_service()
+        .await
+        .save_file(image, scope)
         .await
         .map_err(|_| BackendError::InternalError)
 }

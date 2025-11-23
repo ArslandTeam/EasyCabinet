@@ -2,14 +2,12 @@
 use crate::{
     BackendError,
     api::{auth, cache_manager::CacheManager, email, entities, user},
+    generate_config::CONFIG,
 };
 use axum_extra::extract as cookie_manager;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use sea_orm::DatabaseConnection;
-use std::{
-    env,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub async fn verify_auth(
     db: &DatabaseConnection,
@@ -21,10 +19,13 @@ pub async fn verify_auth(
         .map_err(|_| BackendError::InternalError)?;
 
     match user {
-        Some(user) => match check_password(password, &user.password) {
-            true => Ok(user),
-            false => Err(BackendError::BadRequest("Invalid password".into())),
-        },
+        Some(user) => {
+            if check_password(password, &user.password).await {
+                Ok(user)
+            } else {
+                Err(BackendError::BadRequest("Invalid password".into()))
+            }
+        }
         None => Err(BackendError::BadRequest("User not found".into())),
     }
 }
@@ -60,7 +61,7 @@ pub async fn register(
         .delete(&format!("verify_code_email:{}", data.email))
         .await?;
 
-    let hash_password = generate_hash_password(data.password);
+    let hash_password = generate_hash_password(data.password).await;
 
     // TODO надо будет болле правильно обрабатывать ошибку
     user::service::create_user(db, data.login, hash_password, data.email)
@@ -175,7 +176,7 @@ pub async fn change_password(
     user::service::update_user(
         db,
         entities::users::Column::Password,
-        &generate_hash_password(password),
+        &generate_hash_password(password).await,
         entities::users::Column::Email,
         &email,
     )
@@ -196,7 +197,7 @@ pub async fn change_password(
         .set(
             &format!("token_version:{}", user.uuid),
             &(token_version + 1).to_string(),
-            2592000,
+            CONFIG.cookie_expresion_in,
         )
         .await?;
 
@@ -218,7 +219,7 @@ async fn generate_tokens_pair(
         .set(
             &format!("token_version:{uuid}"),
             &format!("{}", token_version + 1),
-            2592000,
+            CONFIG.cookie_expresion_in,
         )
         .await?;
 
@@ -238,20 +239,12 @@ fn create_access_token(uuid: String, login: String, ver: u64) -> Result<String, 
         login,
         ver,
         iat: now,
-        exp: now
-            + env::var("JWT_EXPIRES_IN")
-                .unwrap()
-                .parse::<u64>()
-                .expect("JWT_EXPIRES_IN key not set in .env"),
+        exp: now + CONFIG.jwt_expresion_in,
     };
     encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(
-            env::var("JWT_SECRET")
-                .expect("JWT_SECRET key not set in .env")
-                .as_ref(),
-        ),
+        &EncodingKey::from_secret(CONFIG.jwt_secret.as_ref()),
     )
     .map_err(|_| BackendError::InternalError)
 }
@@ -265,7 +258,7 @@ async fn create_refresh_token(
         .set(
             &format!("refresh_token:{refresh_token}"),
             access_token,
-            2592000,
+            CONFIG.cookie_expresion_in,
         )
         .await?;
 
@@ -279,14 +272,11 @@ pub fn set_refresh_token_cookie(
     let cookie = cookie_manager::cookie::Cookie::build(("refresh_token", refresh_token))
         .path("/auth")
         .http_only(true)
-        .domain(env::var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN key not set in .env"))
+        .domain(&CONFIG.cookie_domain)
         .same_site(cookie_manager::cookie::SameSite::Lax)
-        .secure(env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+        .secure(CONFIG.cookie_secure)
         .max_age(time::Duration::seconds(
-            env::var("COOKIE_EXPIRES_IN")
-                .expect("COOKIE_EXPIRES_IN key not set in .env")
-                .parse()
-                .expect("COOKIE_EXPIRES_IN error parcing (64 bit!!!)"),
+            CONFIG.cookie_expresion_in.try_into().unwrap(),
         ))
         .build();
 
@@ -320,11 +310,7 @@ async fn check_and_remove_token(
 
     let token = decode::<auth::jwt::JwtPayload>(
         &access_token,
-        &DecodingKey::from_secret(
-            env::var("JWT_SECRET")
-                .expect("JWT_SECRET key not set in .env")
-                .as_ref(),
-        ),
+        &DecodingKey::from_secret(CONFIG.jwt_secret.as_ref()),
         &validation,
     )
     .map_err(|_| BackendError::BadRequest("Invalid token".into()))?;
@@ -352,10 +338,10 @@ async fn check_and_remove_token(
     })
 }
 
-fn generate_hash_password(password: String) -> String {
+async fn generate_hash_password(password: String) -> String {
     bcrypt::hash(password, 10).unwrap()
 }
 
-fn check_password(password: String, hash: &str) -> bool {
+async fn check_password(password: String, hash: &str) -> bool {
     bcrypt::verify(password, hash).unwrap()
 }

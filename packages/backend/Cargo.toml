@@ -51,5 +51,6 @@ unwrap_used = "warn"
 expect_used = "warn"
 
 [profile.release]
+panic = "abort"
 codegen-units = 1
 lto = "fat"

@@ -66,28 +66,32 @@ pub async fn get_profile(
     db: &DatabaseConnection,
     uuid: String,
 ) -> Result<user::dto::ResponseProfileDTO, BackendError> {
-    let user = users::Entity::find()
-        .filter(users::Column::Uuid.eq(uuid))
-        .one(db)
+    let user = find_user(db, users::Column::Uuid, &uuid)
         .await
         .map_err(|_| BackendError::InternalError)?
-        .ok_or(BackendError::BadRequest("User not found".to_string()))?;
+        .ok_or(BackendError::BadRequest("User not found".into()))?;
 
-    Ok(get_skin_data(user))
+    Ok(get_skin_data(user).await)
 }
 
 // TODO может тоже придётся переписать и заодно заменить AssetType на что то другое
-fn get_skin_data(user: users::Model) -> user::dto::ResponseProfileDTO {
+async fn get_skin_data(user: users::Model) -> user::dto::ResponseProfileDTO {
+    let skin_url = if let Some(hash) = user.skin_hash.as_deref() {
+        assets::service::format_url(assets::service::AssetType::Skin, hash).await
+    } else {
+        None
+    };
+
+    let cape_url = if let Some(hash) = user.cape_hash.as_deref() {
+        assets::service::format_url(assets::service::AssetType::Cape, hash).await
+    } else {
+        None
+    };
+
     user::dto::ResponseProfileDTO {
         is_alex: user.is_alex,
-        skin_url: user
-            .skin_hash
-            .as_deref()
-            .and_then(|hash| assets::service::format_url(assets::service::AssetType::Skin, hash)),
-        cape_url: user
-            .cape_hash
-            .as_deref()
-            .and_then(|hash| assets::service::format_url(assets::service::AssetType::Cape, hash)),
+        skin_url,
+        cape_url,
     }
 }
 
