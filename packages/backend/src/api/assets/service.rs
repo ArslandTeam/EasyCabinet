@@ -1,5 +1,5 @@
 // TODO переписать
-use crate::{BackendError, api::files::service::files_service};
+use crate::{BackendError, api::storage::service::StorageService};
 use image::{ImageFormat, ImageReader};
 use std::io::Cursor;
 
@@ -9,19 +9,27 @@ pub enum AssetType {
     Cape,
 }
 
-pub async fn format_url(asset_type: AssetType, hash: &str) -> Option<String> {
-    if hash.is_empty() {
-        return None;
-    }
-    let scope = match asset_type {
-        AssetType::Skin => "skin",
-        AssetType::Cape => "cape",
-    };
+// pub async fn format_url(
+//     storage: &FilesService,
+//     asset_type: AssetType,
+//     hash: &str,
+// ) -> Option<Vec<u8>> {
+//     if hash.is_empty() {
+//         return None;
+//     }
+//     let scope = match asset_type {
+//         AssetType::Skin => "skin",
+//         AssetType::Cape => "cape",
+//     };
 
-    Some(files_service().await.format_url(scope, hash))
-}
+//     storage.get_file(scope, hash).await
+// }
 
-pub async fn upload_image(asset_type: AssetType, image: &[u8]) -> Result<String, BackendError> {
+pub async fn upload_image(
+    storage: &StorageService,
+    asset_type: AssetType,
+    image: &[u8],
+) -> Result<String, BackendError> {
     if image.is_empty() {
         return Err(BackendError::BadRequest("Invalid image".into()));
     }
@@ -33,11 +41,7 @@ pub async fn upload_image(asset_type: AssetType, image: &[u8]) -> Result<String,
         AssetType::Cape => "cape",
     };
 
-    files_service()
-        .await
-        .save_file(image, scope)
-        .await
-        .map_err(|_| BackendError::InternalError)
+    storage.save_file(image, scope).await
 }
 
 // FIX вот это тем более переписать

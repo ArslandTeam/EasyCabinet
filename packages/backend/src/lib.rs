@@ -1,4 +1,4 @@
-use crate::api::cache_manager::CacheManager;
+use crate::api::{cache_manager::CacheManager, storage::service::StorageService};
 use axum_extra::extract::cookie::Key;
 mod api;
 pub mod generate_config;
@@ -31,9 +31,16 @@ pub async fn start_backend() {
 
     let cache = CacheManager::cache_init().await;
 
+    let storage = StorageService::storage_init().await;
+
     let key = Key::from(CONFIG.cookie_secret.as_bytes());
 
-    let state = AppState { conn, cache, key };
+    let state = AppState {
+        conn,
+        cache,
+        storage,
+        key,
+    };
 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", CONFIG.host, CONFIG.port))
         .await
@@ -76,10 +83,6 @@ fn init_router(state: AppState) -> axum::Router {
         )
         .route("/aurora/profile", post(api::aurora::controller::profile))
         .route("/aurora/profiles", post(api::aurora::controller::profiles))
-        .nest_service(
-            "/uploads",
-            tower_http::services::ServeDir::new(std::path::Path::new("uploads")),
-        )
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(
             tower_http::cors::CorsLayer::new()
@@ -105,6 +108,7 @@ fn init_router(state: AppState) -> axum::Router {
 struct AppState {
     conn: sea_orm::DatabaseConnection,
     cache: CacheManager,
+    storage: StorageService,
     key: Key,
 }
 

@@ -1,7 +1,7 @@
 // TODO переписать
 use crate::{
     BackendError,
-    api::{assets, auth, entities::users, user},
+    api::{assets, auth, entities::users, storage::service::StorageService, user},
 };
 use migration::Expr;
 use sea_orm::{
@@ -64,6 +64,7 @@ pub async fn create_user(
 
 pub async fn get_profile(
     db: &DatabaseConnection,
+    storage: &StorageService,
     uuid: String,
 ) -> Result<user::dto::ResponseProfileDTO, BackendError> {
     let user = find_user(db, users::Column::Uuid, &uuid)
@@ -71,33 +72,45 @@ pub async fn get_profile(
         .map_err(|_| BackendError::InternalError)?
         .ok_or(BackendError::BadRequest("User not found".into()))?;
 
-    Ok(get_skin_data(user).await)
+    Ok(get_skin_data(storage, user).await)
 }
 
-// TODO может тоже придётся переписать и заодно заменить AssetType на что то другое
-async fn get_skin_data(user: users::Model) -> user::dto::ResponseProfileDTO {
-    let skin_url = if let Some(hash) = user.skin_hash.as_deref() {
-        assets::service::format_url(assets::service::AssetType::Skin, hash).await
+async fn get_skin_data(
+    storage: &StorageService,
+    user: users::Model,
+) -> user::dto::ResponseProfileDTO {
+    use base64::Engine;
+
+    // TODO Думаю луше объеденить два if в один передавя лишь нужный тип текстуры
+    let skin = if let Some(hash) = user.skin_hash {
+        storage.get_file("skin", &hash).await.ok().map(|bytes| {
+            let textures = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            format!("data:image/png;base64,{textures}")
+        })
     } else {
         None
     };
 
-    let cape_url = if let Some(hash) = user.cape_hash.as_deref() {
-        assets::service::format_url(assets::service::AssetType::Cape, hash).await
+    let cape = if let Some(hash) = user.cape_hash {
+        storage.get_file("cape", &hash).await.ok().map(|bytes| {
+            let textures = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            format!("data:image/png;base64,{textures}")
+        })
     } else {
         None
     };
 
     user::dto::ResponseProfileDTO {
         is_alex: user.is_alex,
-        skin_url,
-        cape_url,
+        skin_url: skin,
+        cape_url: cape,
     }
 }
 
 // FIX это пиздец я потом исправлю
 pub async fn update_profile(
     db: &DatabaseConnection,
+    storage: &StorageService,
     user: auth::jwt::JwtPayload,
     profile: user::dto::ReqwestProfileDTO,
     skin: Option<&[u8]>,
@@ -106,12 +119,14 @@ pub async fn update_profile(
     let mut update_user = users::Entity::update_many().filter(users::Column::Login.eq(user.login));
 
     if let Some(data) = skin {
-        let hash = assets::service::upload_image(assets::service::AssetType::Skin, data).await?;
+        let hash =
+            assets::service::upload_image(storage, assets::service::AssetType::Skin, data).await?;
         update_user = update_user.col_expr(users::Column::SkinHash, Expr::value(hash));
     }
 
     if let Some(data) = cape {
-        let hash = assets::service::upload_image(assets::service::AssetType::Cape, data).await?;
+        let hash =
+            assets::service::upload_image(storage, assets::service::AssetType::Cape, data).await?;
         update_user = update_user.col_expr(users::Column::CapeHash, Expr::value(hash));
     }
 

@@ -32,6 +32,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 aws-sdk-s3 = "1.112.0"
 aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
+base64 = "0.22.1"
 
 [lints.clippy]
 single_match = "warn"

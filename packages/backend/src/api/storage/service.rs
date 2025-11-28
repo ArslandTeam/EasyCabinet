@@ -1,17 +1,7 @@
-// TODO переписать
 use crate::{BackendError, generate_config::CONFIG};
 use aws_sdk_s3::primitives::ByteStream;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use tokio::sync::OnceCell;
-
-pub static FILES_SERVICE: OnceCell<FilesService> = OnceCell::const_new(); // FIX использовать другую реализацию DI (через async trait)
-
-pub async fn files_service() -> &'static FilesService {
-    FILES_SERVICE
-        .get_or_init(|| async { FilesService::storage_init().await })
-        .await
-}
 
 #[derive(Clone)]
 enum StorageType {
@@ -23,20 +13,20 @@ enum StorageType {
 }
 
 #[derive(Clone)]
-pub struct FilesService {
+pub struct StorageService {
     storage: StorageType,
 }
 
-impl FilesService {
+impl StorageService {
     pub async fn storage_init() -> Self {
         match &*CONFIG.storage_textures_type {
-            "local" => FilesService {
+            "local" => StorageService {
                 storage: StorageType::Local,
             },
             "s3" => {
                 let config = aws_config::load_from_env().await;
                 let clinet = aws_sdk_s3::Client::new(&config);
-                FilesService {
+                StorageService {
                     storage: StorageType::S3 {
                         client: clinet,
                         bucket: CONFIG.bucket_name.clone(),
@@ -47,17 +37,36 @@ impl FilesService {
         }
     }
 
-    pub fn format_url(&self, scope: &str, hash: &str) -> String {
+    // INFO Обработка через map_err избатачна но возможно понадобится в будущем
+    pub async fn get_file(&self, scope: &str, hash: &str) -> Result<Box<[u8]>, BackendError> {
+        let path = format_path(scope, hash);
         match &self.storage {
             StorageType::Local => {
-                format!(
-                    "{}/uploads/{}",
-                    CONFIG.backend_url,
-                    format_path(scope, hash)
-                )
+                let file_path = PathBuf::from("uploads").join(path);
+                let bytes = tokio::fs::read(file_path)
+                    .await
+                    .map_err(|_| BackendError::BadRequest("Not found".into()))?;
+
+                Ok(bytes.into_boxed_slice())
             }
-            StorageType::S3 { .. } => {
-                format!("{}/{}", CONFIG.s3_aws_global_url, format_path(scope, hash)) // FIX переписать принципи логику убрать format_url и возращать клиенту сразу же файл а не ссылку
+            StorageType::S3 { client, bucket } => {
+                let response = client
+                    .get_object()
+                    .bucket(bucket)
+                    .key(path)
+                    .send()
+                    .await
+                    .map_err(|_| BackendError::BadRequest("Not found".into()))?;
+
+                let bytes = response
+                    .body
+                    .collect()
+                    .await
+                    .map_err(|_| BackendError::InternalError)?
+                    .into_bytes()
+                    .to_vec();
+
+                Ok(bytes.into_boxed_slice())
             }
         }
     }
@@ -77,12 +86,12 @@ impl FilesService {
                 if let Some(parent) = file_path.parent() {
                     tokio::fs::create_dir_all(parent)
                         .await
-                        .map_err(|_| BackendError::InternalError)?;
+                        .map_err(|_| panic!("No permission create dir"))?;
                 }
 
                 tokio::fs::write(file_path, file)
                     .await
-                    .map_err(|_| BackendError::InternalError)
+                    .map_err(|_| panic!("No permission write file"))
             }
             StorageType::S3 { client, bucket } => client
                 .put_object()
