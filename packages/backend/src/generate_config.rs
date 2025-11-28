@@ -2,7 +2,6 @@
 pub struct Config {
     pub host: String,
     pub port: String,
-    pub backend_url: String,
     pub frontend_url: String,
     pub jwt_secret: String,
     pub jwt_expresion_in: u64,
@@ -33,7 +32,6 @@ pub fn get_env(key: &str) -> String {
 pub static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(|| Config {
     host: get_env("HOST"),
     port: get_env("PORT"),
-    backend_url: get_env("BACKEND_URL"),
     frontend_url: get_env("FRONTEND_URL"),
     jwt_secret: get_env("JWT_SECRET"),
     jwt_expresion_in: get_env("JWT_EXPIRES_IN")
