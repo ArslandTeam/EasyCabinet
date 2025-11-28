@@ -1,16 +1,11 @@
-use crate::api::cache_manager::CacheManager;
+use crate::api::{cache_manager::CacheManager, storage::service::StorageService};
 use axum_extra::extract::cookie::Key;
-use std::env;
 mod api;
 pub mod generate_config;
+use crate::generate_config::CONFIG;
 
 #[tokio::main]
 pub async fn start_backend() {
-    dotenvy::dotenv().ok();
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL key not set in .env");
-    let host = env::var("HOST").expect("HOST key not set in .env");
-    let port = env::var("PORT").expect("PORT key not set in .env");
-
     #[cfg(debug_assertions)]
     {
         //"RUST_LOG=debug" or "RUST_LOG=info"
@@ -29,22 +24,25 @@ pub async fn start_backend() {
 
     use migration::MigratorTrait;
 
-    let conn = sea_orm::Database::connect(db_url)
+    let conn = sea_orm::Database::connect(&CONFIG.db_url)
         .await
         .expect("Database connection failed");
     migration::Migrator::up(&conn, None).await.unwrap();
 
     let cache = CacheManager::cache_init().await;
 
-    let key = Key::from(
-        env::var("COOKIES_SECRET")
-            .expect("COOKIES_SECRET key not set in .env")
-            .as_bytes(),
-    );
+    let storage = StorageService::storage_init().await;
 
-    let state = AppState { conn, cache, key };
+    let key = Key::from(CONFIG.cookie_secret.as_bytes());
 
-    let listener = tokio::net::TcpListener::bind(format!("{host}:{port}"))
+    let state = AppState {
+        conn,
+        cache,
+        storage,
+        key,
+    };
+
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", CONFIG.host, CONFIG.port))
         .await
         .unwrap();
     axum::serve(listener, init_router(state)).await.unwrap();
@@ -53,8 +51,6 @@ pub async fn start_backend() {
 fn init_router(state: AppState) -> axum::Router {
     use axum::routing::{get, post, put};
     use http::{Method, header};
-
-    let frontend = env::var("FRONTEND_URL").expect("FRONTEND_URL key not set in .env");
 
     axum::Router::new()
         .route(
@@ -87,14 +83,15 @@ fn init_router(state: AppState) -> axum::Router {
         )
         .route("/aurora/profile", post(api::aurora::controller::profile))
         .route("/aurora/profiles", post(api::aurora::controller::profiles))
-        .nest_service(
-            "/uploads",
-            tower_http::services::ServeDir::new(std::path::Path::new("uploads")),
-        )
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(
             tower_http::cors::CorsLayer::new()
-                .allow_origin(frontend.parse::<axum::http::HeaderValue>().unwrap())
+                .allow_origin(
+                    CONFIG
+                        .frontend_url
+                        .parse::<axum::http::HeaderValue>()
+                        .unwrap(),
+                )
                 .allow_methods([Method::POST, Method::GET, Method::PUT, Method::OPTIONS])
                 .allow_headers([
                     header::CONTENT_TYPE,
@@ -111,6 +108,7 @@ fn init_router(state: AppState) -> axum::Router {
 struct AppState {
     conn: sea_orm::DatabaseConnection,
     cache: CacheManager,
+    storage: StorageService,
     key: Key,
 }
 

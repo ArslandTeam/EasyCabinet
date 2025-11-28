@@ -16,7 +16,7 @@ pub async fn get_profile(
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
     let user = auth::jwt::extract_jwt_token(&jar)?;
-    let profile = user::service::get_profile(&state.conn, user.uuid).await?;
+    let profile = user::service::get_profile(&state.conn, &state.storage, user.uuid).await?;
     Ok(Json(profile))
 }
 
@@ -56,8 +56,15 @@ pub async fn update_profile(
 
     let profile = user::dto::ReqwestProfileDTO { is_alex };
 
-    user::service::update_profile(&state.conn, jwt, profile, skin.as_deref(), cape.as_deref())
-        .await?;
+    user::service::update_profile(
+        &state.conn,
+        &state.storage,
+        jwt,
+        profile,
+        skin.as_deref(),
+        cape.as_deref(),
+    )
+    .await?;
 
     Ok(StatusCode::OK)
 }

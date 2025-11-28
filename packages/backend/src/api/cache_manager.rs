@@ -1,4 +1,5 @@
-use crate::BackendError;
+// TODO сделать реализацию через DI
+use crate::{BackendError, generate_config::CONFIG};
 use redis::AsyncCommands;
 
 #[derive(Clone)]
@@ -38,10 +39,7 @@ impl moka::Expiry<String, MokaCacheTTL> for PerEntryExpiry {
 /// Из .env извлекает значение и присваивает его переменной cache_type с типом `CacheType`
 impl CacheManager {
     pub async fn cache_init() -> Self {
-        match std::env::var("CACHE")
-            .expect("CACHE key not set in .env")
-            .as_str()
-        {
+        match &*CONFIG.cache_type {
             "local" => {
                 let cache = moka::future::Cache::builder()
                     .max_capacity(1000)
@@ -52,8 +50,7 @@ impl CacheManager {
                 }
             }
             "redis" => {
-                let redis_url = redis::Client::open(std::env::var("REDIS_URL").unwrap())
-                    .expect("Invalid Redis URL");
+                let redis_url = redis::Client::open(&*CONFIG.redis_url).expect("Invalid Redis URL");
                 let conn = redis_url
                     .get_multiplexed_async_connection()
                     .await

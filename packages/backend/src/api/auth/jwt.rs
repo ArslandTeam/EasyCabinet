@@ -1,4 +1,4 @@
-use crate::BackendError;
+use crate::{BackendError, generate_config::CONFIG};
 use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar};
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
@@ -16,15 +16,12 @@ pub fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCoo
     let cookie = Cookie::build(("access_token", access_token))
         .path("/")
         .http_only(true)
-        .domain(std::env::var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN key not set in .env"))
+        .domain(&CONFIG.cookie_domain)
         .same_site(SameSite::Lax)
         .max_age(time::Duration::seconds(
-            std::env::var("JWT_EXPIRES_IN")
-                .expect("JWT_EXPIRES_IN key not set in .env")
-                .parse::<i64>()
-                .expect("JWT_EXPIRES_IN error parcing (i64 bit !!!)"),
+            CONFIG.jwt_expresion_in.try_into().unwrap(),
         ))
-        .secure(std::env::var("COOKIE_SECURE").unwrap_or_default() == "true")
+        .secure(CONFIG.cookie_secure)
         .build();
 
     jar.add(cookie)
@@ -40,11 +37,7 @@ pub fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, BackendErr
 
     let token = decode::<JwtPayload>(
         &token,
-        &DecodingKey::from_secret(
-            std::env::var("JWT_SECRET")
-                .expect("JWT_SECRET key not set in .env")
-                .as_bytes(),
-        ),
+        &DecodingKey::from_secret(CONFIG.jwt_secret.as_bytes()),
         &Validation::default(),
     )
     .map_err(|_| BackendError::BadRequest("Invalid token".into()))?;

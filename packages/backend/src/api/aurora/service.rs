@@ -44,22 +44,21 @@ pub async fn join(
         .map_err(|_| BackendError::InternalError)?
         .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
-    match user.access_token == Some(body.access_token) {
-        true => {
-            user::service::update_user(
-                db,
-                entities::users::Column::ServerId,
-                &body.server_id,
-                entities::users::Column::Uuid,
-                &body.user_uuid,
-            )
-            .await
-            .map_err(|_| BackendError::InternalError)?;
-            Ok(Json(json!({"success": true})))
-        }
-        false => Err(BackendError::BadRequestAurora(
+    if user.access_token == Some(body.access_token) {
+        user::service::update_user(
+            db,
+            entities::users::Column::ServerId,
+            &body.server_id,
+            entities::users::Column::Uuid,
+            &body.user_uuid,
+        )
+        .await
+        .map_err(|_| BackendError::InternalError)?;
+        Ok(Json(json!({"success": true})))
+    } else {
+        Err(BackendError::BadRequestAurora(
             "Access token not correct".into(),
-        )),
+        ))
     }
 }
 
