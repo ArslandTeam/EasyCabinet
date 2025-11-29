@@ -54,7 +54,7 @@ pub async fn join(
         )
         .await
         .map_err(|_| BackendError::InternalError)?;
-        Ok(Json(json!({"success": true})))
+        Ok(Json(json!(true)))
     } else {
         Err(BackendError::BadRequestAurora(
             "Access token not correct".into(),
