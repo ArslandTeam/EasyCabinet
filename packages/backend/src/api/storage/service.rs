@@ -39,7 +39,7 @@ impl StorageService {
 
     // INFO Обработка через map_err избатачна но возможно понадобится в будущем
     pub async fn get_file(&self, scope: &str, hash: &str) -> Result<Box<[u8]>, BackendError> {
-        let path = format_path(scope, hash);
+        let path = Self::format_path(scope, hash);
         match &self.storage {
             StorageType::Local => {
                 let file_path = PathBuf::from("uploads").join(path);
@@ -72,8 +72,8 @@ impl StorageService {
     }
 
     pub async fn save_file(&self, file: &[u8], scope: &str) -> Result<String, BackendError> {
-        let hash = generate_hash(file);
-        let path = format_path(scope, &hash);
+        let hash = Self::generate_hash(file);
+        let path = Self::format_path(scope, &hash);
         self.save_image_to_disk(file, &path).await?;
         Ok(hash)
     }
@@ -104,14 +104,14 @@ impl StorageService {
                 .map_err(|_| BackendError::InternalError),
         }
     }
-}
 
-fn format_path(scope: &str, hash: &str) -> String {
-    let prefix = &hash[..2.min(hash.len())];
-    format!("{scope}/{prefix}/{hash}")
-}
+    fn format_path(scope: &str, hash: &str) -> String {
+        let prefix = &hash[..2.min(hash.len())];
+        format!("{scope}/{prefix}/{hash}")
+    }
 
-fn generate_hash(buffer: &[u8]) -> String {
-    let hash = Sha256::digest(buffer);
-    format!("{:x}", hash)
+    fn generate_hash(buffer: &[u8]) -> String {
+        let hash = Sha256::digest(buffer);
+        format!("{:x}", hash)
+    }
 }

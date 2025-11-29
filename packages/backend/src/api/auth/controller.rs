@@ -1,6 +1,6 @@
 use crate::{
     AppState, BackendError, ValidatedJson,
-    api::auth::{dto, jwt, service},
+    api::auth::{dto, jwt, service::AuthService},
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::extract::{SignedCookieJar, cookie::Cookie};
@@ -11,9 +11,10 @@ pub async fn authentication(
     ValidatedJson(payload): ValidatedJson<dto::RequestLoginDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
     let (access_token, refresh_token) =
-        service::authentication(&state.conn, &state.cache, payload.login, payload.password).await?;
-    let jar = service::set_refresh_token_cookie(jar, refresh_token);
-    let jar = jwt::set_access_token(jar, access_token);
+        AuthService::authentication(&state.conn, &state.cache, payload.login, payload.password)
+            .await?;
+    let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
+    let jar = jwt::set_access_token(jar, access_token).await;
     Ok((StatusCode::OK, jar))
 }
 
@@ -21,7 +22,7 @@ pub async fn register(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<dto::RequestRegisterDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    service::register(&state.conn, &state.cache, payload).await?;
+    AuthService::register(&state.conn, &state.cache, payload).await?;
     Ok(StatusCode::CREATED)
 }
 
@@ -29,7 +30,7 @@ pub async fn verify_email(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<dto::RequestVerifyEmailDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    service::verify_email(&state.conn, &state.cache, payload.email).await?;
+    AuthService::verify_email(&state.conn, &state.cache, payload.email).await?;
     Ok(StatusCode::OK)
 }
 
@@ -43,10 +44,11 @@ pub async fn refresh(
         .value()
         .to_string();
 
-    let (access_token, refresh_token) = service::refresh(&state.cache, old_refresh_token).await?;
+    let (access_token, refresh_token) =
+        AuthService::refresh(&state.cache, old_refresh_token).await?;
 
-    let jar = service::set_refresh_token_cookie(jar, refresh_token);
-    let jar = jwt::set_access_token(jar, access_token);
+    let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
+    let jar = jwt::set_access_token(jar, access_token).await;
     Ok((StatusCode::OK, jar))
 }
 
@@ -59,7 +61,7 @@ pub async fn logout(
         .get("refresh_token")
         .map(|cookie| cookie.value().to_string())
     {
-        service::logout(&state.cache, refresh_token).await;
+        AuthService::logout(&state.cache, refresh_token).await;
     }
 
     let jar = jar
@@ -73,7 +75,7 @@ pub async fn reset_password(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<dto::RequestResetPasswordDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    service::reset_password(&state.conn, &state.cache, payload.email).await?;
+    AuthService::reset_password(&state.conn, &state.cache, payload.email).await?;
     Ok(StatusCode::OK)
 }
 
@@ -81,7 +83,7 @@ pub async fn change_password(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<dto::RequestChangePasswordDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    service::change_password(
+    AuthService::change_password(
         &state.conn,
         &state.cache,
         payload.reset_token,

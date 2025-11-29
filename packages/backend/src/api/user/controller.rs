@@ -1,6 +1,9 @@
 use crate::{
     AppState, BackendError,
-    api::{auth, user},
+    api::{
+        auth,
+        user::{dto, service::UserService},
+    },
 };
 use axum::{
     Json,
@@ -15,8 +18,8 @@ pub async fn get_profile(
     State(state): State<AppState>,
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
-    let user = auth::jwt::extract_jwt_token(&jar)?;
-    let profile = user::service::get_profile(&state.conn, &state.storage, user.uuid).await?;
+    let user = auth::jwt::extract_jwt_token(&jar).await?;
+    let profile = UserService::get_profile(&state.conn, &state.storage, user.uuid).await?;
     Ok(Json(profile))
 }
 
@@ -26,7 +29,7 @@ pub async fn update_profile(
     jar: SignedCookieJar,
     mut multipart: Multipart,
 ) -> Result<impl IntoResponse, BackendError> {
-    let jwt = auth::jwt::extract_jwt_token(&jar)?;
+    let jwt = auth::jwt::extract_jwt_token(&jar).await?;
     let mut is_alex: bool = false;
     let mut skin: Option<Bytes> = None;
     let mut cape: Option<Bytes> = None;
@@ -54,9 +57,9 @@ pub async fn update_profile(
         }
     }
 
-    let profile = user::dto::ReqwestProfileDTO { is_alex };
+    let profile = dto::ReqwestProfileDTO { is_alex };
 
-    user::service::update_profile(
+    UserService::update_profile(
         &state.conn,
         &state.storage,
         jwt,

@@ -1,6 +1,9 @@
 use crate::{
     AppState, BackendError,
-    api::{aurora, auth},
+    api::{
+        aurora::{dto, service::AuroraService},
+        auth,
+    },
 };
 use axum::{Json, extract::State, response::IntoResponse};
 
@@ -8,33 +11,33 @@ pub async fn auth(
     State(state): State<AppState>,
     Json(payload): Json<auth::dto::RequestLoginDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    aurora::service::auth(&state.conn, payload.login, payload.password).await
+    AuroraService::auth(&state.conn, payload.login, payload.password).await
 }
 
 pub async fn join(
     State(state): State<AppState>,
-    Json(payload): Json<aurora::dto::RequestJoinDto>,
+    Json(payload): Json<dto::RequestJoinDto>,
 ) -> Result<impl IntoResponse, BackendError> {
-    aurora::service::join(&state.conn, payload).await
+    AuroraService::join(&state.conn, payload).await
 }
 
 pub async fn has_joined(
     State(state): State<AppState>,
-    Json(payload): Json<aurora::dto::RequestHasJoinedDto>,
+    Json(payload): Json<dto::RequestHasJoinedDto>,
 ) -> Result<impl IntoResponse, BackendError> {
-    aurora::service::has_join(&state.conn, payload).await
+    AuroraService::has_join(&state.conn, payload).await
 }
 
 pub async fn profile(
     State(state): State<AppState>,
-    Json(payload): Json<aurora::dto::RequestProfileDTO>,
+    Json(payload): Json<dto::RequestProfileDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    aurora::service::profile(&state.conn, payload).await
+    AuroraService::profile(&state.conn, payload).await
 }
 
 pub async fn profiles(
     State(state): State<AppState>,
-    Json(payload): Json<aurora::dto::RequestProfilesDto>,
+    Json(payload): Json<dto::RequestProfilesDto>,
 ) -> Result<impl IntoResponse, BackendError> {
-    aurora::service::profiles(&state.conn, payload).await
+    AuroraService::profiles(&state.conn, payload).await
 }
