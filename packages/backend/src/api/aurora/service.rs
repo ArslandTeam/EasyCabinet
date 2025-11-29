@@ -81,7 +81,7 @@ pub async fn has_join(
         .map_err(|_| BackendError::InternalError)?
         .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
-    if user.server_id == Some(body.server_id) {
+    if user.server_id != Some(body.server_id) {
         return Err(BackendError::InternalError);
     };
 
