@@ -1,23 +1,25 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RequestJoinDto {
-    pub access_token: String,
+    #[serde(rename = "userUUID")]
     pub user_uuid: String,
+    #[serde(rename = "accessToken")]
+    pub access_token: String,
+    #[serde(rename = "serverID")]
     pub server_id: String,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RequestHasJoinedDto {
     pub username: String,
+    #[serde(rename = "serverID")]
     pub server_id: String,
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RequestProfileDTO {
+    #[serde(rename = "userUUID")]
     pub user_uuid: String,
 }
 
