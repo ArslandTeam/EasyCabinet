@@ -54,7 +54,10 @@ pub async fn join(
         )
         .await
         .map_err(|_| BackendError::InternalError)?;
-        Ok(Json(json!(true)))
+        Ok(Json(json!({
+          "success": true,
+          "result": true
+        })))
     } else {
         Err(BackendError::BadRequestAurora(
             "Access token not correct".into(),
@@ -108,18 +111,15 @@ pub async fn profiles(
         .await
         .map_err(|_| BackendError::BadRequestAurora("Users not found".into()))?;
 
-    Ok(Json(
-        users
-            .into_iter()
-            .map(|user| {
-                json!({
-                    "success": true,
-                    "result": {
-                        "id": user.uuid,
-                        "name": user.login,
-                    }
-                })
+    let resposne: Vec<Value> = users
+        .into_iter()
+        .map(|user| {
+            json!({
+                    "id": user.uuid,
+                    "name": user.login,
             })
-            .collect(),
-    ))
+        })
+        .collect();
+
+    Ok(Json(json!({"success": true, "result": resposne})))
 }
