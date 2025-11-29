@@ -39,30 +39,37 @@ pub async fn join(
     db: &DatabaseConnection,
     body: aurora::dto::RequestJoinDto,
 ) -> Result<Json<Value>, BackendError> {
-    let user = user::service::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
+    let Some(user) = user::service::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
         .await
         .map_err(|_| BackendError::InternalError)?
-        .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
+    else {
+        return Ok(Json(json!({
+            "success": true,
+            "result": false
+        })));
+    };
 
-    if user.access_token == Some(body.access_token) {
-        user::service::update_user(
-            db,
-            entities::users::Column::ServerId,
-            &body.server_id,
-            entities::users::Column::Uuid,
-            &body.user_uuid,
-        )
-        .await
-        .map_err(|_| BackendError::InternalError)?;
-        Ok(Json(json!({
-          "success": true,
-          "result": true
-        })))
-    } else {
-        Err(BackendError::BadRequestAurora(
-            "Access token not correct".into(),
-        ))
+    if user.access_token != Some(body.access_token) {
+        return Ok(Json(json!({
+            "success": true,
+            "result": false
+        })));
     }
+
+    user::service::update_user(
+        db,
+        entities::users::Column::Uuid,
+        &body.user_uuid,
+        entities::users::Column::ServerId,
+        &body.server_id,
+    )
+    .await
+    .map_err(|_| BackendError::InternalError)?;
+
+    Ok(Json(json!({
+        "success": true,
+        "result": true
+    })))
 }
 
 pub async fn has_join(
