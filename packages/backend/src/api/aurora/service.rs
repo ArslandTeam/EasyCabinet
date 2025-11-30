@@ -62,10 +62,10 @@ impl AuroraService {
 
         UserService::update_user(
             db,
-            entities::users::Column::Uuid,
-            &body.user_uuid,
             entities::users::Column::ServerId,
             &body.server_id,
+            entities::users::Column::Uuid,
+            &body.user_uuid,
         )
         .await
         .map_err(|_| BackendError::InternalError)?;
