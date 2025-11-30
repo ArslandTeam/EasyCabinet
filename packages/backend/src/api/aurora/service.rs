@@ -84,17 +84,11 @@ impl AuroraService {
             .await
             .map_err(|_| BackendError::InternalError)?
         else {
-            return Ok(Json(json!({
-                "success": true,
-                "result": false
-            })));
+            return Err(BackendError::BadRequestAurora("Not found user".into()));
         };
 
         if user.server_id != Some(body.server_id) {
-            return Ok(Json(json!({
-                "success": true,
-                "result": false
-            })));
+            return Err(BackendError::BadRequestAurora("Invalid server id".into()));
         }
 
         Ok(Json(json!({
