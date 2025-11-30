@@ -83,6 +83,10 @@ fn init_router(state: AppState) -> axum::Router {
         )
         .route("/aurora/profile", post(api::aurora::controller::profile))
         .route("/aurora/profiles", post(api::aurora::controller::profiles))
+        .nest_service(
+            "/uploads",
+            tower_http::services::ServeDir::new(std::path::Path::new("uploads")),
+        )
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .layer(
             tower_http::cors::CorsLayer::new()

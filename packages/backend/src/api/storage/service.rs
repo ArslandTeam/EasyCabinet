@@ -38,7 +38,7 @@ impl StorageService {
     }
 
     // INFO Обработка через map_err избатачна но возможно понадобится в будущем
-    pub async fn get_file(&self, scope: &str, hash: &str) -> Result<Box<[u8]>, BackendError> {
+    pub async fn get_file_bit(&self, scope: &str, hash: &str) -> Result<Box<[u8]>, BackendError> {
         let path = Self::format_path(scope, hash);
         match &self.storage {
             StorageType::Local => {
@@ -67,6 +67,18 @@ impl StorageService {
                     .to_vec();
 
                 Ok(bytes.into_boxed_slice())
+            }
+        }
+    }
+
+    pub fn format_url(&self, scope: &str, hash: &str) -> String {
+        let path = Self::format_path(scope, hash);
+        match &self.storage {
+            StorageType::Local => {
+                format!("{}/uploads/{path}", CONFIG.backend_url)
+            }
+            StorageType::S3 { bucket, .. } => {
+                format!("{}/{bucket}/{path}", CONFIG.aws_public_url)
             }
         }
     }

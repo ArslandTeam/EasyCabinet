@@ -87,7 +87,7 @@ impl UserService {
 
         // TODO Думаю луше объеденить два if в один передавя лишь нужный тип текстуры
         let skin = if let Some(hash) = user.skin_hash {
-            storage.get_file("skin", &hash).await.ok().map(|bytes| {
+            storage.get_file_bit("skin", &hash).await.ok().map(|bytes| {
                 let textures = base64::engine::general_purpose::STANDARD.encode(&bytes);
                 format!("data:image/png;base64,{textures}")
             })
@@ -96,7 +96,7 @@ impl UserService {
         };
 
         let cape = if let Some(hash) = user.cape_hash {
-            storage.get_file("cape", &hash).await.ok().map(|bytes| {
+            storage.get_file_bit("cape", &hash).await.ok().map(|bytes| {
                 let textures = base64::engine::general_purpose::STANDARD.encode(&bytes);
                 format!("data:image/png;base64,{textures}")
             })

@@ -3,6 +3,7 @@ pub struct Config {
     pub host: String,
     pub port: String,
     pub frontend_url: String,
+    pub backend_url: String,
     pub jwt_secret: String,
     pub jwt_expresion_in: u64,
     pub cookie_secure: bool,
@@ -17,6 +18,7 @@ pub struct Config {
     pub aws_access_key_id: String,
     pub aws_secret_access_key: String,
     pub bucket_name: String,
+    pub aws_public_url: String,
     pub db_url: String,
     pub email_from: String,
     pub smpt: String,
@@ -33,6 +35,7 @@ pub static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(|| Con
     host: get_env("HOST"),
     port: get_env("PORT"),
     frontend_url: get_env("FRONTEND_URL"),
+    backend_url: get_env("BACKEND_URL"),
     jwt_secret: get_env("JWT_SECRET"),
     jwt_expresion_in: get_env("JWT_EXPIRES_IN")
         .parse::<u64>()
@@ -51,6 +54,7 @@ pub static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(|| Con
     aws_access_key_id: get_env("AWS_ACCESS_KEY_ID"),
     aws_secret_access_key: get_env("AWS_SECRET_ACCESS_KEY"),
     bucket_name: get_env("BUCKET_NAME"),
+    aws_public_url: get_env("AWS_PUBLIC_URL"),
     db_url: get_env("DATABASE_URL"),
     email_from: get_env("EMAIL_FROM"),
     smpt: get_env("SMTP"),

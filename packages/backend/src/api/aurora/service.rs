@@ -43,10 +43,15 @@ impl AuroraService {
         db: &DatabaseConnection,
         body: aurora::dto::RequestJoinDto,
     ) -> Result<Json<Value>, BackendError> {
-        let user = UserService::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
+        let Some(user) = UserService::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
-            .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
+        else {
+            return Ok(Json(json!({
+                "success": true,
+                "result": false
+            })));
+        };
 
         if user.access_token != Some(body.access_token) {
             return Ok(Json(json!({
