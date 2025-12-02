@@ -76,33 +76,21 @@ impl UserService {
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
 
-        Ok(Self::get_skin_data(storage, user).await)
+        Ok(Self::get_textures_data(storage, &user).await)
     }
 
-    async fn get_skin_data(
+    pub async fn get_textures_data(
         storage: &StorageService,
-        user: users::Model,
+        user: &users::Model,
     ) -> user::dto::ResponseProfileDTO {
-        use base64::Engine;
-
-        // TODO Думаю луше объеденить два if в один передавя лишь нужный тип текстуры
-        let skin = if let Some(hash) = user.skin_hash {
-            storage.get_file_bit("skin", &hash).await.ok().map(|bytes| {
-                let textures = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                format!("data:image/png;base64,{textures}")
-            })
-        } else {
-            None
-        };
-
-        let cape = if let Some(hash) = user.cape_hash {
-            storage.get_file_bit("cape", &hash).await.ok().map(|bytes| {
-                let textures = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                format!("data:image/png;base64,{textures}")
-            })
-        } else {
-            None
-        };
+        let skin = user
+            .skin_hash
+            .as_ref()
+            .map(|hash| storage.format_url("skin", hash));
+        let cape = user
+            .cape_hash
+            .as_ref()
+            .map(|hash| storage.format_url("cape", hash));
 
         user::dto::ResponseProfileDTO {
             is_alex: user.is_alex,
@@ -111,7 +99,6 @@ impl UserService {
         }
     }
 
-    // FIX это пиздец я потом исправлю
     pub async fn update_profile(
         db: &DatabaseConnection,
         storage: &StorageService,

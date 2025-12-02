@@ -37,40 +37,6 @@ impl StorageService {
         }
     }
 
-    // INFO Обработка через map_err избатачна но возможно понадобится в будущем
-    pub async fn get_file_bit(&self, scope: &str, hash: &str) -> Result<Box<[u8]>, BackendError> {
-        let path = Self::format_path(scope, hash);
-        match &self.storage {
-            StorageType::Local => {
-                let file_path = PathBuf::from("uploads").join(path);
-                let bytes = tokio::fs::read(file_path)
-                    .await
-                    .map_err(|_| BackendError::BadRequest("Not found".into()))?;
-
-                Ok(bytes.into_boxed_slice())
-            }
-            StorageType::S3 { client, bucket } => {
-                let response = client
-                    .get_object()
-                    .bucket(bucket)
-                    .key(path)
-                    .send()
-                    .await
-                    .map_err(|_| BackendError::BadRequest("Not found".into()))?;
-
-                let bytes = response
-                    .body
-                    .collect()
-                    .await
-                    .map_err(|_| BackendError::InternalError)?
-                    .into_bytes()
-                    .to_vec();
-
-                Ok(bytes.into_boxed_slice())
-            }
-        }
-    }
-
     pub fn format_url(&self, scope: &str, hash: &str) -> String {
         let path = Self::format_path(scope, hash);
         match &self.storage {

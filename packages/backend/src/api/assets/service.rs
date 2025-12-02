@@ -9,22 +9,6 @@ pub enum AssetType {
     Cape,
 }
 
-// pub async fn format_url(
-//     storage: &FilesService,
-//     asset_type: AssetType,
-//     hash: &str,
-// ) -> Option<Vec<u8>> {
-//     if hash.is_empty() {
-//         return None;
-//     }
-//     let scope = match asset_type {
-//         AssetType::Skin => "skin",
-//         AssetType::Cape => "cape",
-//     };
-
-//     storage.get_file(scope, hash).await
-// }
-
 pub async fn upload_image(
     storage: &StorageService,
     asset_type: AssetType,

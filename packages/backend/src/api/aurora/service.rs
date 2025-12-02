@@ -1,6 +1,9 @@
 use crate::{
     BackendError,
-    api::{aurora, auth::service::AuthService, entities, user::service::UserService},
+    api::{
+        aurora, auth::service::AuthService, entities, storage::service::StorageService,
+        user::service::UserService,
+    },
 };
 use axum::Json;
 use sea_orm::DatabaseConnection;
@@ -12,13 +15,16 @@ pub struct AuroraService;
 impl AuroraService {
     pub async fn auth(
         db: &DatabaseConnection,
+        storage: &StorageService,
         login: String,
         password: String,
     ) -> Result<Json<Value>, BackendError> {
         let user = AuthService::verify_auth(db, &login, password)
             .await
             .map_err(|_| BackendError::BadRequestAurora("Incorecrt password or login".into()))?;
+
         let access_token = uuid::Uuid::new_v4().to_string();
+
         UserService::update_user(
             db,
             entities::users::Column::AccessToken,
@@ -29,12 +35,17 @@ impl AuroraService {
         .await
         .map_err(|_| BackendError::InternalError)?;
 
+        let textures = UserService::get_textures_data(storage, &user).await;
+
         Ok(Json(json!({
             "success": true,
             "result": {
                 "username": user.login,
                 "userUUID": user.uuid,
-                "accessToken": access_token
+                "accessToken": access_token,
+                "isAlex": textures.is_alex,
+                "skinUrl": textures.skin_url,
+                "capeUrl": textures.cape_url,
             }
         })))
     }
@@ -78,29 +89,34 @@ impl AuroraService {
 
     pub async fn has_join(
         db: &DatabaseConnection,
+        storage: &StorageService,
         body: aurora::dto::RequestHasJoinedDto,
     ) -> Result<Json<Value>, BackendError> {
-        let Some(user) = UserService::find_user(db, entities::users::Column::Login, &body.username)
+        let user = UserService::find_user(db, entities::users::Column::Login, &body.username)
             .await
             .map_err(|_| BackendError::InternalError)?
-        else {
-            return Err(BackendError::BadRequestAurora("Not found user".into()));
-        };
+            .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
         if user.server_id != Some(body.server_id) {
             return Err(BackendError::BadRequestAurora("Invalid server id".into()));
         }
 
+        let textures = UserService::get_textures_data(storage, &user).await;
+
         Ok(Json(json!({
             "success": true,
             "result": {
                 "userUUID": user.uuid,
+                "isAlex": textures.is_alex,
+                "skinUrl": textures.skin_url,
+                "capeUrl": textures.cape_url,
             }
         })))
     }
 
     pub async fn profile(
         db: &DatabaseConnection,
+        storage: &StorageService,
         body: aurora::dto::RequestProfileDTO,
     ) -> Result<Json<Value>, BackendError> {
         let user = UserService::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
@@ -108,10 +124,15 @@ impl AuroraService {
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
+        let textures = UserService::get_textures_data(storage, &user).await;
+
         Ok(Json(json!({
             "success": true,
             "result": {
-                "username": user.login
+                "username": user.login,
+                "isAlex": textures.is_alex,
+                "skinUrl": textures.skin_url,
+                "capeUrl": textures.cape_url,
             }
         })))
     }

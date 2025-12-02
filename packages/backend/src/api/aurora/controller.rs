@@ -11,7 +11,7 @@ pub async fn auth(
     State(state): State<AppState>,
     Json(payload): Json<auth::dto::RequestLoginDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    AuroraService::auth(&state.conn, payload.login, payload.password).await
+    AuroraService::auth(&state.conn, &state.storage, payload.login, payload.password).await
 }
 
 pub async fn join(
@@ -25,14 +25,14 @@ pub async fn has_joined(
     State(state): State<AppState>,
     Json(payload): Json<dto::RequestHasJoinedDto>,
 ) -> Result<impl IntoResponse, BackendError> {
-    AuroraService::has_join(&state.conn, payload).await
+    AuroraService::has_join(&state.conn, &state.storage, payload).await
 }
 
 pub async fn profile(
     State(state): State<AppState>,
     Json(payload): Json<dto::RequestProfileDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    AuroraService::profile(&state.conn, payload).await
+    AuroraService::profile(&state.conn, &state.storage, payload).await
 }
 
 pub async fn profiles(
