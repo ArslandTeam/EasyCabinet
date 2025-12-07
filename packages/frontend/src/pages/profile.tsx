@@ -56,7 +56,6 @@ export default function Profile() {
     if (profile.cape_url) {
       skinViewer.current?.loadCape(profile.cape_url);
     }
-
   }, [profile]);
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -127,7 +126,7 @@ export default function Profile() {
               className="sr-only peer"
               onChange={changeCapeElytra}
             />
-            <div className="w-11 h-6 peer-focus:outline-hidden peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-neutral-600 peer-checked:bg-blue-600" />
+            <div className="w-11 h-6 peer-focus:outline-hidden peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-neutral-600 peer-checked:bg-blue-600" />
           </label>
           <span className="ms-3 text-sm font-medium text-neutral-300">
             Элитры
@@ -154,7 +153,7 @@ export default function Profile() {
                     onChange={changeSkinType}
                     checked={skinType}
                   />
-                  <div className="w-11 h-6 peer-focus:outline-hidden peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-neutral-600 peer-checked:bg-blue-600" />
+                  <div className="w-11 h-6 peer-focus:outline-hidden peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-0 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-neutral-600 peer-checked:bg-blue-600" />
                 </label>
                 <span className="ms-3 text-sm font-medium text-neutral-300">
                   Slim
@@ -169,7 +168,7 @@ export default function Profile() {
                   определился с ошибкой.
                 </small>
               </td>
-              <td className="md:hidden" colSpan={2}>
+              <td className="md:hidden text-center" colSpan={2}>
                 <small className="text-neutral-500">
                   Определяется автоматически. Переключайте, если тип скина
                   определился с ошибкой.
@@ -178,7 +177,7 @@ export default function Profile() {
             </tr>
           </tbody>
         </table>
-        <div className="items-center">
+        <div className="max-md:flex max-md:flex-col max-md:items-center max-md:justify-center">
           <input
             type="file"
             name="skin"
@@ -189,7 +188,7 @@ export default function Profile() {
           />
           <label
             htmlFor="skin"
-            className="inline-block px-4 py-2 border border-neutral-600 rounded-lg hover:bg-neutral-700 transition-colors cursor-pointer mr-3"
+            className="inline-block px-4 py-2 border border-neutral-600 rounded-lg hover:bg-neutral-700 transition-colors cursor-pointer md:mr-3"
           >
             Загрузить скин
           </label>
@@ -203,13 +202,13 @@ export default function Profile() {
           />
           <label
             htmlFor="cape"
-            className="inline-block px-4 py-2 border border-neutral-600 rounded-lg hover:bg-neutral-700 transition-colors cursor-pointer mt-2 mr-3"
+            className="inline-block px-4 py-2 border border-neutral-600 rounded-lg hover:bg-neutral-700 transition-colors cursor-pointer mt-2 md:mr-3"
           >
             Загрузить плащ
           </label>
         </div>
         <br />
-        <button className="px-4 py-2 mt-6 border bg-blue-600 border-blue-700 hover:bg-blue-500 hover:border-blue-600 transition-colors rounded-lg save-button mr-3">
+        <button className="px-4 py-2 mt-6 border bg-blue-600 border-blue-700 hover:bg-blue-500 hover:border-blue-600 transition-colors rounded-lg save-button md:mr-3">
           Сохранить изменения
         </button>
       </form>

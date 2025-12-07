@@ -1,7 +1,4 @@
 use crate::{BackendError, generate_config::CONFIG};
-use aws_sdk_s3::primitives::ByteStream;
-use sha2::{Digest, Sha256};
-use std::path::PathBuf;
 
 #[derive(Clone)]
 enum StorageType {
@@ -59,7 +56,7 @@ impl StorageService {
     async fn save_image_to_disk(&self, file: &[u8], path: &str) -> Result<(), BackendError> {
         match &self.storage {
             StorageType::Local => {
-                let file_path = PathBuf::from("uploads").join(path);
+                let file_path = std::path::PathBuf::from("uploads").join(path);
 
                 if let Some(parent) = file_path.parent() {
                     tokio::fs::create_dir_all(parent)
@@ -75,7 +72,7 @@ impl StorageService {
                 .put_object()
                 .bucket(bucket)
                 .key(path)
-                .body(ByteStream::from(file.to_vec()))
+                .body(aws_sdk_s3::primitives::ByteStream::from(file.to_vec()))
                 .send()
                 .await
                 .map(|_| ())
@@ -89,7 +86,8 @@ impl StorageService {
     }
 
     fn generate_hash(buffer: &[u8]) -> String {
-        let hash = Sha256::digest(buffer);
+        use sha2::Digest;
+        let hash = sha2::Sha256::digest(buffer);
         format!("{:x}", hash)
     }
 }

@@ -55,6 +55,7 @@ export default function Register() {
             type="text"
             name="login"
             placeholder="Логин"
+            maxLength={16}
             className="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
           />
           <input
@@ -75,19 +76,23 @@ export default function Register() {
             placeholder="Повторите пароль"
             className="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
           />
-          <input
-            type="number"
-            name="code"
-            placeholder="Код"
-            className="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
-          />
-          <button
-            type="button"
-            onClick={verifyEmailSubmit}
-            className="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
-          >
-            Получить код
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="number"
+              name="code"
+              placeholder="Код"
+              min="100000"
+              max="999999"
+              className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
+            />
+            <button
+              type="button"
+              onClick={verifyEmailSubmit}
+              className="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
+            >
+              Получить код
+            </button>
+          </div>
           <button
             type="submit"
             className="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
@@ -97,8 +102,11 @@ export default function Register() {
         </form>
         <div className="mt-4 text-center text-sm">
           Уже есть аккаунт?
-          <a href="/login" className="text-blue-500 ml-1 hover:text-blue-600">
-            Войти
+          <a
+            href="/authentication"
+            className="text-blue-500 ml-1 hover:text-blue-600"
+          >
+            Войти
           </a>
         </div>
       </div>
