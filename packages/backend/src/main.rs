@@ -1,3 +1,5 @@
+use std::{ops::Deref, sync::Arc};
+
 use crate::api::{cache_manager::CacheManager, storage::service::StorageService};
 use axum_extra::extract::cookie::Key;
 mod api;
@@ -33,12 +35,12 @@ pub async fn main() {
 
     let key = Key::from(CONFIG.cookie_secret.as_bytes());
 
-    let state = AppState {
+    let state = AppState(Arc::new(InnerState {
         conn,
         cache,
         storage,
         key,
-    };
+    }));
 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", CONFIG.host, CONFIG.port))
         .await
@@ -107,7 +109,17 @@ fn init_router(state: AppState) -> axum::Router {
 }
 
 #[derive(Clone)]
-struct AppState {
+struct AppState(Arc<InnerState>);
+
+impl Deref for AppState {
+    type Target = InnerState;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+struct InnerState {
     conn: sea_orm::DatabaseConnection,
     cache: CacheManager,
     storage: StorageService,
@@ -117,7 +129,7 @@ struct AppState {
 /// Эта реализация сообщает [`SignedCookieJar`], как получить доступ к ключу из нашего состояния
 impl axum::extract::FromRef<AppState> for Key {
     fn from_ref(state: &AppState) -> Self {
-        state.key.clone()
+        state.0.key.clone()
     }
 }
 
