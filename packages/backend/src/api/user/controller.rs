@@ -39,8 +39,8 @@ pub async fn update_profile(
         .await
         .map_err(|_| BackendError::BadRequest("Invalid multipart data".into()))?
     {
-        let name = field.name().unwrap().to_string();
-        let data = field.bytes().await.unwrap();
+        let name = field.name().unwrap_or_default().to_string();
+        let data = field.bytes().await.unwrap_or_default();
 
         match name.as_str() {
             "is_alex" => {

@@ -31,6 +31,7 @@ pub fn get_env(key: &str) -> String {
     })
 }
 
+#[allow(clippy::expect_used)]
 pub static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(|| Config {
     host: get_env("HOST"),
     port: get_env("PORT"),

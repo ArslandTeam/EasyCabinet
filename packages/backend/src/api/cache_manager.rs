@@ -1,3 +1,4 @@
+#![allow(clippy::expect_used)]
 use crate::{BackendError, generate_config::CONFIG};
 use redis::AsyncCommands;
 

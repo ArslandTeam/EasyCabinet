@@ -115,7 +115,7 @@ impl Deref for AppState {
     type Target = InnerState;
 
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 
