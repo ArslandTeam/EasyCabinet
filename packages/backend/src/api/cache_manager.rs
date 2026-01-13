@@ -1,4 +1,3 @@
-// TODO сделать реализацию через DI
 use crate::{BackendError, generate_config::CONFIG};
 use redis::AsyncCommands;
 

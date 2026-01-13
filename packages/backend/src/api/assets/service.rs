@@ -55,6 +55,7 @@ async fn verify_asset(asset_type: AssetType, image: &[u8]) -> Result<(), Backend
     use image::GenericImageView;
     let (width, height) = img.dimensions();
 
+    // TODO добавить в настройки конфига
     let valid_sizes: &[(u32, u32)] = match asset_type {
         AssetType::Skin => &[(64, 32), (64, 64)],
         AssetType::Cape => &[(64, 32)],
