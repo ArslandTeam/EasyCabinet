@@ -1,77 +1,33 @@
 // TODO переписать
 use crate::{
     BackendError,
-    api::{assets, auth, entities::users, storage::service::StorageService, user},
+    api::{
+        assets, auth,
+        database::{
+            entities::{sessions, users},
+            service::DatabaseService,
+        },
+        storage::service::StorageService,
+        user,
+    },
+    generate_config::CONFIG,
 };
 use migration::Expr;
 use sea_orm::{
-    ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, InsertResult, QueryFilter,
+    ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, ExprTrait, InsertResult,
+    QueryFilter,
 };
 
 #[derive(Default)]
 pub struct UserService;
 
 impl UserService {
-    pub async fn find_user(
-        db: &DatabaseConnection,
-        column: users::Column,
-        value: &str,
-    ) -> Result<Option<users::Model>, DbErr> {
-        users::Entity::find()
-            .filter(Expr::col(column).eq(value))
-            .one(db)
-            .await
-    }
-
-    pub async fn find_users(
-        db: &DatabaseConnection,
-        column: users::Column,
-        value: Vec<String>,
-    ) -> Result<Vec<users::Model>, DbErr> {
-        users::Entity::find()
-            .filter(Expr::col(column).is_in(value))
-            .all(db)
-            .await
-    }
-
-    pub async fn update_user(
-        db: &DatabaseConnection,
-        column: users::Column,
-        value: &str,
-        column_filter: users::Column,
-        filter: &str,
-    ) -> Result<(), DbErr> {
-        users::Entity::update_many()
-            .col_expr(column, Expr::value(value))
-            .filter(column_filter.eq(filter))
-            .exec(db)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn create_user(
-        db: &DatabaseConnection,
-        login: String,
-        password: String,
-        email: String,
-    ) -> Result<InsertResult<users::ActiveModel>, DbErr> {
-        let user = users::ActiveModel {
-            uuid: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
-            login: ActiveValue::Set(login),
-            password: ActiveValue::Set(password),
-            email: ActiveValue::Set(email),
-            ..Default::default()
-        };
-
-        users::Entity::insert(user).exec(db).await
-    }
-
     pub async fn get_profile(
         db: &DatabaseConnection,
         storage: &StorageService,
         uuid: String,
     ) -> Result<user::dto::ResponseProfileDTO, BackendError> {
-        let user = Self::find_user(db, users::Column::Uuid, &uuid)
+        let user = DatabaseService::find_user(db, users::Column::Uuid, &uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;

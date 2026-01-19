@@ -1,7 +1,12 @@
 // TODO изменить концепцию входа в аккаунт (реализовать сессии).
 use crate::{
     BackendError,
-    api::{auth, cache_manager::CacheManager, email, entities, user::service::UserService},
+    api::{
+        auth,
+        cache_manager::CacheManager,
+        database::{self, service::DatabaseService},
+        email,
+    },
     generate_config::CONFIG,
 };
 use axum_extra::extract as cookie_manager;
@@ -13,35 +18,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct AuthService;
 
 impl AuthService {
-    pub async fn verify_auth(
-        db: &DatabaseConnection,
-        login: &str,
-        password: String,
-    ) -> Result<entities::users::Model, BackendError> {
-        let user = UserService::find_user(db, entities::users::Column::Login, login)
-            .await
-            .map_err(|_| BackendError::InternalError)?;
-
-        match user {
-            Some(user) => {
-                if Self::check_password(password, &user.password).await {
-                    Ok(user)
-                } else {
-                    Err(BackendError::BadRequest("Invalid password".into()))
-                }
-            }
-            None => Err(BackendError::BadRequest("User not found".into())),
-        }
-    }
-
     pub async fn authentication(
         db: &DatabaseConnection,
         cache: &CacheManager,
         login: String,
         password: String,
+        user_agent: String,
     ) -> Result<(String, String), BackendError> {
         let user = Self::verify_auth(db, &login, password).await?;
-        Self::generate_tokens_pair(cache, user.uuid, user.login)
+        Self::generate_tokens_pair(cache, db, user.uuid, user.login, user_agent)
             .await
             .map_err(|_| BackendError::InternalError)
     }
@@ -68,7 +53,7 @@ impl AuthService {
         let hash_password = Self::generate_hash_password(data.password).await;
 
         // TODO надо будет болле правильно обрабатывать ошибку
-        UserService::create_user(db, data.login, hash_password, data.email)
+        DatabaseService::create_user(db, data.login, hash_password, data.email)
             .await
             .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
 
@@ -80,7 +65,7 @@ impl AuthService {
         cache: &CacheManager,
         email: String,
     ) -> Result<(), BackendError> {
-        if UserService::find_user(db, entities::users::Column::Email, &email)
+        if DatabaseService::find_user(db, database::entities::users::Column::Email, &email)
             .await
             .map_err(|_| BackendError::InternalError)?
             .is_some()
@@ -102,15 +87,16 @@ impl AuthService {
         Ok(())
     }
 
-    pub async fn refresh(
-        cache: &CacheManager,
-        refresh_token: String,
-    ) -> Result<(String, String), BackendError> {
-        let user = Self::check_and_remove_token(cache, refresh_token).await?;
-        Self::generate_tokens_pair(cache, user.uuid, user.login)
-            .await
-            .map_err(|_| BackendError::InternalError)
-    }
+    // pub async fn refresh(
+    //     cache: &CacheManager,
+    //     db: &DatabaseConnection,
+    //     refresh_token: String,
+    // ) -> Result<(String, String), BackendError> {
+    //     let user = Self::check_and_remove_token(cache, refresh_token).await?;
+    //     Self::generate_tokens_pair(cache, db, user.uuid, user.login)
+    //         .await
+    //         .map_err(|_| BackendError::InternalError)
+    // }
 
     pub async fn logout(cache: &CacheManager, refresh_token: String) {
         let _ = Self::check_and_remove_token(cache, refresh_token).await;
@@ -124,7 +110,7 @@ impl AuthService {
         cache: &CacheManager,
         email: String,
     ) -> Result<(), BackendError> {
-        UserService::find_user(db, entities::users::Column::Email, &email)
+        DatabaseService::find_user(db, database::entities::users::Column::Email, &email)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
@@ -172,16 +158,16 @@ impl AuthService {
             ));
         }
 
-        let user = UserService::find_user(db, entities::users::Column::Email, &email)
+        let user = DatabaseService::find_user(db, database::entities::users::Column::Email, &email)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
 
-        UserService::update_user(
+        DatabaseService::update_user(
             db,
-            entities::users::Column::Password,
+            database::entities::users::Column::Password,
             &Self::generate_hash_password(password).await,
-            entities::users::Column::Email,
+            database::entities::users::Column::Email,
             &email,
         )
         .await
@@ -190,53 +176,44 @@ impl AuthService {
         cache.delete(&format!("email_reset_token:{email}")).await?;
         cache.delete(&format!("reset_token:{reset_token}")).await?;
 
-        let token_version = cache
-            .get(&format!("token_version:{}", user.uuid))
-            .await
-            .unwrap_or("1".into())
-            .parse()
-            .unwrap_or(1);
-
-        cache
-            .set(
-                &format!("token_version:{}", user.uuid),
-                &(token_version + 1).to_string(),
-                CONFIG.cookie_expresion_in,
-            )
-            .await?;
-
         Ok(())
+    }
+
+    pub async fn verify_auth(
+        db: &DatabaseConnection,
+        login: &str,
+        password: String,
+    ) -> Result<database::entities::users::Model, BackendError> {
+        let user = DatabaseService::find_user(db, database::entities::users::Column::Login, login)
+            .await
+            .map_err(|_| BackendError::InternalError)?
+            .ok_or(BackendError::BadRequest("User not found".into()))?;
+
+        if Self::check_password(password, &user.password).await {
+            Ok(user)
+        } else {
+            Err(BackendError::BadRequest("Invalid password".into()))
+        }
     }
 
     async fn generate_tokens_pair(
         cache: &CacheManager,
+        db: &DatabaseConnection,
         uuid: String,
         login: String,
+        user_agent: String,
     ) -> Result<(String, String), BackendError> {
-        let token_version = cache
-            .get(&format!("token_version:{uuid}"))
-            .await
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(1);
-
-        cache
-            .set(
-                &format!("token_version:{uuid}"),
-                &format!("{}", token_version + 1),
-                CONFIG.cookie_expresion_in,
-            )
-            .await?;
-
-        let access_token = Self::create_access_token(uuid, login, token_version + 1).await?;
+        let access_token = Self::create_access_token(uuid.clone(), login).await?;
         let refresh_token = Self::create_refresh_token(cache, &access_token).await?;
+
+        DatabaseService::create_session(db, uuid, refresh_token.clone(), user_agent)
+            .await
+            .map_err(|_| BackendError::InternalError)?;
+
         Ok((access_token, refresh_token))
     }
 
-    async fn create_access_token(
-        uuid: String,
-        login: String,
-        ver: u64,
-    ) -> Result<String, BackendError> {
+    async fn create_access_token(uuid: String, login: String) -> Result<String, BackendError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -245,7 +222,6 @@ impl AuthService {
         let claims = auth::jwt::JwtPayload {
             uuid,
             login,
-            ver,
             iat: now,
             exp: now + CONFIG.jwt_expresion_in,
         };
@@ -323,24 +299,11 @@ impl AuthService {
         )
         .map_err(|_| BackendError::BadRequest("Invalid token".into()))?;
 
-        if token.claims.ver
-            != cache
-                .get(&format!("token_version:{}", token.claims.uuid))
-                .await
-                .and_then(|value| value.parse().ok())
-                .unwrap_or(1)
-        {
-            return Err(BackendError::BadRequest(
-                "Token version not validate".into(),
-            ));
-        }
-
         Self::delete_refresh_token(cache, refresh_token).await?;
 
         Ok(auth::jwt::JwtPayload {
             uuid: token.claims.uuid,
             login: token.claims.login,
-            ver: token.claims.ver,
             iat: token.claims.iat,
             exp: token.claims.exp,
         })
