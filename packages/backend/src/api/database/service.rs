@@ -69,14 +69,12 @@ impl DatabaseService {
     pub async fn create_session(
         db: &DatabaseConnection,
         uuid: String,
-        refresh_token: String,
         user_agent: String,
     ) -> Result<InsertResult<sessions::ActiveModel>, DbErr> {
         let now = chrono::Utc::now();
 
         let session = sessions::ActiveModel {
             uuid: ActiveValue::Set(uuid),
-            refresh_token: ActiveValue::Set(refresh_token),
             user_agent: ActiveValue::Set(user_agent),
             exp: ActiveValue::Set(
                 now + chrono::Duration::seconds(CONFIG.cookie_expresion_in as i64),

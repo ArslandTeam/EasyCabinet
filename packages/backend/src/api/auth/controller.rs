@@ -49,6 +49,7 @@ pub async fn verify_email(
 
 // pub async fn refresh(
 //     State(state): State<AppState>,
+//     headers: HeaderMap,
 //     jar: SignedCookieJar,
 // ) -> Result<impl IntoResponse, BackendError> {
 //     let old_refresh_token = jar
@@ -57,8 +58,14 @@ pub async fn verify_email(
 //         .value()
 //         .to_string();
 
+//     let user_agent = headers
+//         .get(USER_AGENT)
+//         .and_then(|v| v.to_str().ok())
+//         .unwrap_or("Unknown")
+//         .to_string();
+
 //     let (access_token, refresh_token) =
-//         AuthService::refresh(&state.cache, &state.conn, old_refresh_token).await?;
+//         AuthService::refresh(&state.cache, &state.conn, old_refresh_token, user_agent).await?;
 
 //     let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
 //     let jar = jwt::set_access_token(jar, access_token).await;

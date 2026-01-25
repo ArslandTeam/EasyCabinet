@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct JwtPayload {
     pub uuid: String,
     pub login: String,
+    pub session_id: i32,
     pub iat: u64,
     pub exp: u64,
 }
