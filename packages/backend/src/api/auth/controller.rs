@@ -47,49 +47,47 @@ pub async fn verify_email(
     Ok(StatusCode::OK)
 }
 
-// pub async fn refresh(
-//     State(state): State<AppState>,
-//     headers: HeaderMap,
-//     jar: SignedCookieJar,
-// ) -> Result<impl IntoResponse, BackendError> {
-//     let old_refresh_token = jar
-//         .get("refresh_token")
-//         .ok_or(BackendError::BadRequest("No refresh token".into()))?
-//         .value()
-//         .to_string();
+pub async fn refresh(
+    State(state): State<AppState>,
+    jar: SignedCookieJar,
+) -> Result<impl IntoResponse, BackendError> {
+    let old_refresh_token = jar
+        .get("refresh_token")
+        .ok_or(BackendError::BadRequest("No refresh token".into()))?
+        .value()
+        .to_string();
 
-//     let user_agent = headers
-//         .get(USER_AGENT)
-//         .and_then(|v| v.to_str().ok())
-//         .unwrap_or("Unknown")
-//         .to_string();
+    let old_access_token = jar
+        .get("access_token")
+        .ok_or(BackendError::BadRequest("No access token".into()))?
+        .value()
+        .to_string();
 
-//     let (access_token, refresh_token) =
-//         AuthService::refresh(&state.cache, &state.conn, old_refresh_token, user_agent).await?;
+    let (access_token, refresh_token) =
+        AuthService::refresh(&state.cache, old_refresh_token, old_access_token).await?;
 
-//     let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
-//     let jar = jwt::set_access_token(jar, access_token).await;
-//     Ok((StatusCode::OK, jar))
-// }
+    let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
+    let jar = jwt::set_access_token(jar, access_token).await;
+    Ok((StatusCode::OK, jar))
+}
 
 pub async fn logout(
     State(state): State<AppState>,
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
-    if let Some(refresh_token) = jar
-        .get("refresh_token")
-        .map(|cookie| cookie.value().to_string())
-    {
-        AuthService::logout(&state.cache, refresh_token).await;
+    let refresh_token = jar.get("refresh_token").map(|c| c.value().to_string());
+    let access_token = jar.get("access_token").map(|c| c.value().to_string());
+
+    if let (Some(rf), Some(at)) = (refresh_token, access_token) {
+        AuthService::logout(&state.cache, &state.conn, rf, at).await;
     }
 
     let jar = jar
-        .remove(Cookie::from("refresh_token"))
-        .remove(Cookie::build("access_token").path("/").build());
+        .remove(Cookie::build(("refresh_token", "")).path("/auth").build())
+        .remove(Cookie::build(("access_token", "")).path("/").build());
 
     Ok((StatusCode::OK, jar))
 }
-
 pub async fn reset_password(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<dto::RequestResetPasswordDTO>,

@@ -3,20 +3,13 @@ use crate::{
     BackendError,
     api::{
         assets, auth,
-        database::{
-            entities::{sessions, users},
-            service::DatabaseService,
-        },
+        database::{entities::users, service::DatabaseService},
         storage::service::StorageService,
         user,
     },
-    generate_config::CONFIG,
 };
 use migration::Expr;
-use sea_orm::{
-    ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, ExprTrait, InsertResult,
-    QueryFilter,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 #[derive(Default)]
 pub struct UserService;

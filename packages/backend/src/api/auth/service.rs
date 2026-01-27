@@ -90,20 +90,26 @@ impl AuthService {
         Ok(())
     }
 
-    // pub async fn refresh(
-    //     cache: &CacheManager,
-    //     db: &DatabaseConnection,
-    //     refresh_token: String,
-    //     user_agent: String,
-    // ) -> Result<(String, String), BackendError> {
-    //     let user = Self::check_and_remove_token(cache, refresh_token).await;
-    //     Self::generate_tokens_pair(cache, db, user.uuid, user.login, user_agent)
-    //         .await
-    //         .map_err(|_| BackendError::InternalError)
-    // }
+    pub async fn refresh(
+        cache: &CacheManager,
+        refresh_token: String,
+        access_token: String,
+    ) -> Result<(String, String), BackendError> {
+        let payload = Self::check_and_remove_token(cache, refresh_token, access_token).await?;
 
-    pub async fn logout(cache: &CacheManager, refresh_token: String) {
-        let _ = Self::check_and_remove_token(cache, refresh_token).await;
+        Self::update_tokens_pair(cache, payload.uuid, payload.login, payload.session_id).await
+    }
+
+    pub async fn logout(
+        cache: &CacheManager,
+        db: &DatabaseConnection,
+        refresh_token: String,
+        access_token: String,
+    ) {
+        if let Ok(payload) = Self::check_and_remove_token(cache, refresh_token, access_token).await
+        {
+            let _ = DatabaseService::delete_session(db, payload.session_id).await;
+        }
     }
 
     /// Создаёт два ключа:
@@ -218,6 +224,18 @@ impl AuthService {
         Ok((access_token, refresh_token))
     }
 
+    async fn update_tokens_pair(
+        cache: &CacheManager,
+        uuid: String,
+        login: String,
+        session_id: i32,
+    ) -> Result<(String, String), BackendError> {
+        let access_token = Self::create_access_token(uuid, login, session_id).await?;
+        let refresh_token = Self::create_refresh_token(cache, session_id).await?;
+
+        Ok((access_token, refresh_token))
+    }
+
     async fn create_access_token(
         uuid: String,
         login: String,
@@ -277,7 +295,38 @@ impl AuthService {
         jar.add(cookie)
     }
 
-    async fn check_and_remove_token(cache: &CacheManager, refresh_token: String) {}
+    async fn check_and_remove_token(
+        cache: &CacheManager,
+        refresh_token: String,
+        access_token: String,
+    ) -> Result<auth::jwt::JwtPayload, BackendError> {
+        let mut validation = Validation::default();
+        validation.validate_exp = false;
+
+        let token_data = decode::<auth::jwt::JwtPayload>(
+            &access_token,
+            &DecodingKey::from_secret(CONFIG.jwt_secret.as_ref()),
+            &validation,
+        )
+        .map_err(|_| BackendError::BadRequest("Invalid access token".into()))?;
+
+        let refresh_store = cache
+            .get(&format!("session_id:{}", token_data.claims.session_id))
+            .await
+            .ok_or(BackendError::BadRequest(
+                "Session expired or not found".into(),
+            ))?;
+
+        if refresh_store != refresh_token {
+            return Err(BackendError::BadRequest("Token mismatch".into()));
+        }
+
+        cache
+            .delete(&format!("session_id:{}", token_data.claims.session_id))
+            .await?;
+
+        Ok(token_data.claims)
+    }
 
     async fn generate_hash_password(password: String) -> String {
         bcrypt::hash(password, 10).unwrap()

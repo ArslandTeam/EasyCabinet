@@ -85,4 +85,9 @@ impl DatabaseService {
 
         sessions::Entity::insert(session).exec(db).await
     }
+
+    pub async fn delete_session(db: &DatabaseConnection, session_id: i32) -> Result<(), DbErr> {
+        sessions::Entity::delete_by_id(session_id).exec(db).await?;
+        Ok(())
+    }
 }
