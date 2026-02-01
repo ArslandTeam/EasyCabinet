@@ -17,8 +17,16 @@ impl MigrationTrait for Migration {
                     .col(pk_auto(Sessions::Id))
                     .col(string(Sessions::Uuid))
                     .col(string(Sessions::UserAgent))
-                    .col(date_time(Sessions::Exp))
-                    .col(date_time(Sessions::Iat))
+                    .col(
+                        ColumnDef::new(Sessions::Exp)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Sessions::Iat)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-sessions-user_uuid")
