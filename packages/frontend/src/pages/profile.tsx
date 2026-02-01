@@ -4,12 +4,14 @@ import {
   getProfile,
   isAuthedAtom,
   isLoadedAtom,
+  logout_all,
   profileAtom,
 } from "../shared/api";
 import { useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import { useAuthMiddleware } from "../hooks/useAuthMiddleware";
 import { failure } from "../shared/lib";
+import { useNavigate } from "react-router";
 
 export default function Profile() {
   useAuthMiddleware();
@@ -19,11 +21,18 @@ export default function Profile() {
   const skinCanvas = useRef<HTMLCanvasElement>(null);
   const isLoaded = useAtomValue(isLoadedAtom);
   const isAuthed = useAtomValue(isAuthedAtom);
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (isLoaded && isAuthed) {
       getProfile();
     }
   }, [isLoaded, isAuthed]);
+
+  const doLogoutAll = async () => {
+    await logout_all();
+    navigate("/");
+  };
   useEffect(() => {
     if (!skinCanvas.current) return;
     const _skinViewer = new SkinViewer({
@@ -212,6 +221,29 @@ export default function Profile() {
           Сохранить изменения
         </button>
       </form>
+
+      {/*TODO пределать разметку под нормальную*/}
+      <div className="space-y-3">
+        {profile?.sessions.map((session, index) => (
+          <div
+            key={session.id || index}
+            className="p-4 border border-zinc-700 bg-zinc-800 rounded-lg"
+          >
+            <p className="text-sm text-zinc-300">
+              <span className="font-semibold">Устройство:</span>{" "}
+              {session.user_agent}
+            </p>
+            <p className="text-xs text-zinc-500">
+              <span className="font-semibold">Дата входа:</span>{" "}
+              {new Date(session.iat).toLocaleString()}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <a href="#" onClick={doLogoutAll}>
+        Выход
+      </a>
     </div>
   );
 }

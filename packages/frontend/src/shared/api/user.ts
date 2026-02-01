@@ -6,6 +6,14 @@ interface Profile {
   skin_url?: string;
   cape_url?: string;
   is_alex: boolean;
+  email: string;
+  sessions: Session[];
+}
+
+interface Session {
+  id: string;
+  user_agent: string;
+  iat: string;
 }
 
 export const profileAtom = atom<Profile | null>(null);

@@ -5,8 +5,11 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
+    #[sea_orm(unique)]
     pub uuid: String,
+    #[sea_orm(unique)]
     pub email: String,
+    #[sea_orm(unique)]
     pub login: String,
     pub password: String,
     #[sea_orm(column_name = "accessToken")]

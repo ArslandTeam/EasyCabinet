@@ -114,4 +114,30 @@ impl CacheManager {
             }
         }
     }
+
+    pub async fn delete_pattern(&self, pattern: &str) -> Result<(), BackendError> {
+        match &self.cache_type {
+            CacheType::Local(cache) => {
+                for (key, _) in cache.iter().filter(|(k, _)| k.contains(pattern)) {
+                    cache.invalidate(key.as_ref()).await;
+                }
+                Ok(())
+            }
+            CacheType::Redis(conn) => {
+                let mut conn = conn.lock().await;
+                let keys: Vec<String> = conn
+                    .keys(pattern)
+                    .await
+                    .map_err(|_| BackendError::InternalError)?;
+
+                if !keys.is_empty() {
+                    let _: () = conn
+                        .del(keys)
+                        .await
+                        .map_err(|_| BackendError::InternalError)?;
+                }
+                Ok(())
+            }
+        }
+    }
 }

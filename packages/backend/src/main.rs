@@ -65,6 +65,7 @@ fn init_router(state: AppState) -> axum::Router {
         )
         .route("/auth/refresh", post(api::auth::controller::refresh))
         .route("/auth/logout", post(api::auth::controller::logout))
+        .route("/auth/logout_all", post(api::auth::controller::logout_all))
         .route(
             "/auth/reset-password",
             post(api::auth::controller::reset_password),

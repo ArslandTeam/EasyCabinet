@@ -4,15 +4,28 @@ use crate::{
 };
 use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::extract::{SignedCookieJar, cookie::Cookie};
+use http::{HeaderMap, header::USER_AGENT};
 
 pub async fn authentication(
     State(state): State<AppState>,
+    headers: HeaderMap,
     jar: SignedCookieJar,
     ValidatedJson(payload): ValidatedJson<dto::RequestLoginDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    let (access_token, refresh_token) =
-        AuthService::authentication(&state.conn, &state.cache, payload.login, payload.password)
-            .await?;
+    let user_agent = headers
+        .get(USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("Unknown")
+        .to_string();
+
+    let (access_token, refresh_token) = AuthService::authentication(
+        &state.conn,
+        &state.cache,
+        payload.login,
+        payload.password,
+        user_agent,
+    )
+    .await?;
     let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
     let jar = jwt::set_access_token(jar, access_token).await;
     Ok((StatusCode::OK, jar))
@@ -42,31 +55,54 @@ pub async fn refresh(
         .get("refresh_token")
         .ok_or(BackendError::BadRequest("No refresh token".into()))?
         .value()
-        .to_string();
+        .to_owned();
+
+    let old_access_token = jar
+        .get("access_token")
+        .ok_or(BackendError::BadRequest("No access token".into()))?
+        .value()
+        .to_owned();
 
     let (access_token, refresh_token) =
-        AuthService::refresh(&state.cache, old_refresh_token).await?;
+        AuthService::refresh(&state.cache, old_refresh_token, old_access_token).await?;
 
     let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
     let jar = jwt::set_access_token(jar, access_token).await;
     Ok((StatusCode::OK, jar))
 }
 
-// TODO может быть придётся переписать
 pub async fn logout(
     State(state): State<AppState>,
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
-    if let Some(refresh_token) = jar
+    let refresh_token = jar
         .get("refresh_token")
-        .map(|cookie| cookie.value().to_string())
-    {
-        AuthService::logout(&state.cache, refresh_token).await;
-    }
+        .map(|cookie| cookie.value().to_owned());
+    let access_token = jar
+        .get("access_token")
+        .map(|cookie| cookie.value().to_owned());
+
+    AuthService::logout(&state.cache, &state.conn, refresh_token, access_token).await?;
 
     let jar = jar
         .remove(Cookie::from("refresh_token"))
         .remove(Cookie::build("access_token").path("/").build());
+
+    Ok((StatusCode::OK, jar))
+}
+
+// INFO and FIX после выхода из аккаунта остаётся некоторое время JWT_EXPIRES_IN
+pub async fn logout_all(
+    State(state): State<AppState>,
+    jar: SignedCookieJar,
+) -> Result<impl IntoResponse, BackendError> {
+    let jwt = jwt::extract_jwt_token(&jar).await?;
+
+    AuthService::logout_all(&state.cache, &state.conn, jwt.uuid).await?;
+
+    let jar = jar
+        .remove(Cookie::from("refresh_token"))
+        .remove(Cookie::build(("access_token", "")).path("/").build());
 
     Ok((StatusCode::OK, jar))
 }

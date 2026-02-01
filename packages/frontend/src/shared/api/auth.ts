@@ -113,3 +113,13 @@ export async function logout() {
   getDefaultStore().set(isAuthedAtom, false);
   setBearerToken(null);
 }
+
+export async function logout_all() {
+  try {
+    await axios.post("auth/logout_all", null, { withCredentials: true });
+  } catch {
+    // do nothing
+  }
+  getDefaultStore().set(isAuthedAtom, false);
+  setBearerToken(null);
+}

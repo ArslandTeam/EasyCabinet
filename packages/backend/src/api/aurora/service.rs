@@ -1,7 +1,10 @@
 use crate::{
     BackendError,
     api::{
-        aurora, auth::service::AuthService, entities, storage::service::StorageService,
+        aurora,
+        auth::service::AuthService,
+        database::{entities::users, service::DatabaseService},
+        storage::service::StorageService,
         user::service::UserService,
     },
 };
@@ -25,11 +28,11 @@ impl AuroraService {
 
         let access_token = uuid::Uuid::new_v4().to_string();
 
-        UserService::update_user(
+        DatabaseService::update_user(
             db,
-            entities::users::Column::AccessToken,
+            users::Column::AccessToken,
             &access_token,
-            entities::users::Column::Login,
+            users::Column::Login,
             &login,
         )
         .await
@@ -54,7 +57,7 @@ impl AuroraService {
         db: &DatabaseConnection,
         body: aurora::dto::RequestJoinDto,
     ) -> Result<Json<Value>, BackendError> {
-        let Some(user) = UserService::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
+        let Some(user) = DatabaseService::find_user(db, users::Column::Uuid, &body.user_uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
         else {
@@ -71,11 +74,11 @@ impl AuroraService {
             })));
         }
 
-        UserService::update_user(
+        DatabaseService::update_user(
             db,
-            entities::users::Column::ServerId,
+            users::Column::ServerId,
             &body.server_id,
-            entities::users::Column::Uuid,
+            users::Column::Uuid,
             &body.user_uuid,
         )
         .await
@@ -92,7 +95,7 @@ impl AuroraService {
         storage: &StorageService,
         body: aurora::dto::RequestHasJoinedDto,
     ) -> Result<Json<Value>, BackendError> {
-        let user = UserService::find_user(db, entities::users::Column::Login, &body.username)
+        let user = DatabaseService::find_user(db, users::Column::Login, &body.username)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
@@ -119,7 +122,7 @@ impl AuroraService {
         storage: &StorageService,
         body: aurora::dto::RequestProfileDTO,
     ) -> Result<Json<Value>, BackendError> {
-        let user = UserService::find_user(db, entities::users::Column::Uuid, &body.user_uuid)
+        let user = DatabaseService::find_user(db, users::Column::Uuid, &body.user_uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
@@ -141,7 +144,7 @@ impl AuroraService {
         db: &DatabaseConnection,
         body: aurora::dto::RequestProfilesDto,
     ) -> Result<Json<Value>, BackendError> {
-        let users = UserService::find_users(db, entities::users::Column::Login, body.usernames)
+        let users = DatabaseService::find_users(db, users::Column::Login, body.usernames)
             .await
             .map_err(|_| BackendError::BadRequestAurora("Users not found".into()))?;
 
