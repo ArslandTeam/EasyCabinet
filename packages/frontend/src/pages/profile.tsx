@@ -1,8 +1,6 @@
 import { IdleAnimation, SkinViewer } from "skinview3d";
 import {
-  accountAtom,
   editProfile,
-  getAccount,
   getProfile,
   isAuthedAtom,
   isLoadedAtom,
@@ -19,7 +17,6 @@ export default function Profile() {
   useAuthMiddleware();
   const [skinType, setSkinType] = useState<boolean>(false);
   const profile = useAtomValue(profileAtom);
-  const account = useAtomValue(accountAtom);
   const skinViewer = useRef<SkinViewer | null>(null);
   const skinCanvas = useRef<HTMLCanvasElement>(null);
   const isLoaded = useAtomValue(isLoadedAtom);
@@ -29,7 +26,6 @@ export default function Profile() {
   useEffect(() => {
     if (isLoaded && isAuthed) {
       getProfile();
-      getAccount();
     }
   }, [isLoaded, isAuthed]);
 
@@ -228,7 +224,7 @@ export default function Profile() {
 
       {/*TODO пределать разметку под нормальную*/}
       <div className="space-y-3">
-        {account?.sessions.map((session, index) => (
+        {profile?.sessions.map((session, index) => (
           <div
             key={session.id || index}
             className="p-4 border border-zinc-700 bg-zinc-800 rounded-lg"

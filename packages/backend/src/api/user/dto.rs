@@ -12,10 +12,13 @@ pub struct ResponseProfileDTO {
     pub is_alex: Option<bool>,
     pub skin_url: Option<String>,
     pub cape_url: Option<String>,
+    pub email: String,
+    pub sessions: Vec<sessions::Model>,
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct ResponseAccountDTO {
-    pub email: String,
-    pub sessions: Vec<sessions::Model>,
+pub struct ResponseTexturesDTO {
+    pub is_alex: Option<bool>,
+    pub skin_url: Option<String>,
+    pub cape_url: Option<String>,
 }

@@ -76,7 +76,6 @@ fn init_router(state: AppState) -> axum::Router {
         )
         .route("/users", get(api::user::controller::get_profile))
         .route("/users", put(api::user::controller::update_profile))
-        .route("/accounts", get(api::user::controller::get_account))
         .route("/aurora/auth", post(api::aurora::controller::auth))
         .route("/aurora/join", post(api::aurora::controller::join))
         .route(

@@ -1,4 +1,3 @@
-// TODO изменить концепцию входа в аккаунт (реализовать сессии).
 use crate::{
     BackendError,
     api::{
@@ -55,7 +54,6 @@ impl AuthService {
 
         let hash_password = Self::generate_hash_password(data.password).await;
 
-        // TODO надо будет болле правильно обрабатывать ошибку
         DatabaseService::create_user(db, data.login, hash_password, data.email)
             .await
             .map_err(|_| BackendError::BadRequest("User already exists".into()))?;
@@ -106,12 +104,13 @@ impl AuthService {
         refresh_token: Option<String>,
         access_token: Option<String>,
     ) -> Result<(), BackendError> {
-        if let (Some(rf), Some(at)) = (refresh_token, access_token) {
-            if let Ok(payload) = Self::check_and_remove_token(cache, rf, at).await {
-                DatabaseService::delete_session(db, payload.session_id)
-                    .await
-                    .map_err(|_| BackendError::InternalError)?
-            }
+        if let (Some(refresh_token), Some(access_token)) = (refresh_token, access_token)
+            && let Ok(payload) =
+                Self::check_and_remove_token(cache, refresh_token, access_token).await
+        {
+            DatabaseService::delete_session(db, payload.session_id)
+                .await
+                .map_err(|_| BackendError::InternalError)?
         }
 
         Ok(())

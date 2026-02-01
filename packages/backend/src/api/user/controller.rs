@@ -71,16 +71,3 @@ pub async fn update_profile(
 
     Ok(StatusCode::OK)
 }
-
-// TODO перенести в get_profile
-pub async fn get_account(
-    State(state): State<AppState>,
-    jar: SignedCookieJar,
-) -> Result<impl IntoResponse, BackendError> {
-    let jwt = auth::jwt::extract_jwt_token(&jar).await?;
-
-    Ok((
-        StatusCode::OK,
-        Json(UserService::get_account(&state.conn, jwt.uuid).await?),
-    ))
-}

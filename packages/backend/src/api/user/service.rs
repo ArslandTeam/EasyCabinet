@@ -5,7 +5,7 @@ use crate::{
         assets, auth,
         database::{entities::users, service::DatabaseService},
         storage::service::StorageService,
-        user::{self, dto::ResponseAccountDTO},
+        user::dto,
     },
 };
 use migration::Expr;
@@ -19,19 +19,7 @@ impl UserService {
         db: &DatabaseConnection,
         storage: &StorageService,
         uuid: String,
-    ) -> Result<user::dto::ResponseProfileDTO, BackendError> {
-        let user = DatabaseService::find_user(db, users::Column::Uuid, &uuid)
-            .await
-            .map_err(|_| BackendError::InternalError)?
-            .ok_or(BackendError::BadRequest("User not found".into()))?;
-
-        Ok(Self::get_textures_data(storage, &user).await)
-    }
-
-    pub async fn get_account(
-        db: &DatabaseConnection,
-        uuid: String,
-    ) -> Result<user::dto::ResponseAccountDTO, BackendError> {
+    ) -> Result<dto::ResponseProfileDTO, BackendError> {
         let user = DatabaseService::find_user(db, users::Column::Uuid, &uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
@@ -41,7 +29,19 @@ impl UserService {
             .await
             .map_err(|_| BackendError::InternalError)?;
 
-        Ok(ResponseAccountDTO {
+        let skin_url = user
+            .skin_hash
+            .as_ref()
+            .map(|hash| storage.format_url("skin", hash));
+        let cape_url = user
+            .cape_hash
+            .as_ref()
+            .map(|hash| storage.format_url("cape", hash));
+
+        Ok(dto::ResponseProfileDTO {
+            is_alex: user.is_alex,
+            skin_url,
+            cape_url,
             email: user.email,
             sessions,
         })
@@ -50,20 +50,20 @@ impl UserService {
     pub async fn get_textures_data(
         storage: &StorageService,
         user: &users::Model,
-    ) -> user::dto::ResponseProfileDTO {
-        let skin = user
+    ) -> dto::ResponseTexturesDTO {
+        let skin_url = user
             .skin_hash
             .as_ref()
             .map(|hash| storage.format_url("skin", hash));
-        let cape = user
+        let cape_url = user
             .cape_hash
             .as_ref()
             .map(|hash| storage.format_url("cape", hash));
 
-        user::dto::ResponseProfileDTO {
+        dto::ResponseTexturesDTO {
             is_alex: user.is_alex,
-            skin_url: skin,
-            cape_url: cape,
+            skin_url,
+            cape_url,
         }
     }
 
@@ -71,7 +71,7 @@ impl UserService {
         db: &DatabaseConnection,
         storage: &StorageService,
         user: auth::jwt::JwtPayload,
-        profile: user::dto::ReqwestProfileDTO,
+        profile: dto::ReqwestProfileDTO,
         skin: Option<&[u8]>,
         cape: Option<&[u8]>,
     ) -> Result<(), BackendError> {
