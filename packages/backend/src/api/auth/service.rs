@@ -103,13 +103,34 @@ impl AuthService {
     pub async fn logout(
         cache: &CacheManager,
         db: &DatabaseConnection,
-        refresh_token: String,
-        access_token: String,
-    ) {
-        if let Ok(payload) = Self::check_and_remove_token(cache, refresh_token, access_token).await
-        {
-            let _ = DatabaseService::delete_session(db, payload.session_id).await;
+        refresh_token: Option<String>,
+        access_token: Option<String>,
+    ) -> Result<(), BackendError> {
+        if let (Some(rf), Some(at)) = (refresh_token, access_token) {
+            if let Ok(payload) = Self::check_and_remove_token(cache, rf, at).await {
+                DatabaseService::delete_session(db, payload.session_id)
+                    .await
+                    .map_err(|_| BackendError::InternalError)?
+            }
         }
+
+        Ok(())
+    }
+
+    pub async fn logout_all(
+        cache: &CacheManager,
+        db: &DatabaseConnection,
+        uuid: String,
+    ) -> Result<(), BackendError> {
+        DatabaseService::delete_sessions(db, &uuid)
+            .await
+            .map_err(|_| BackendError::InternalError)?;
+
+        cache
+            .delete_pattern(&format!("session_id:{uuid}:*"))
+            .await?;
+
+        Ok(())
     }
 
     /// Создаёт два ключа:
@@ -218,8 +239,8 @@ impl AuthService {
             .map_err(|_| BackendError::InternalError)?
             .last_insert_id;
 
-        let access_token = Self::create_access_token(uuid, login, session_id).await?;
-        let refresh_token = Self::create_refresh_token(cache, session_id).await?;
+        let access_token = Self::create_access_token(uuid.clone(), login, session_id).await?;
+        let refresh_token = Self::create_refresh_token(cache, session_id, uuid).await?;
 
         Ok((access_token, refresh_token))
     }
@@ -230,8 +251,8 @@ impl AuthService {
         login: String,
         session_id: i32,
     ) -> Result<(String, String), BackendError> {
-        let access_token = Self::create_access_token(uuid, login, session_id).await?;
-        let refresh_token = Self::create_refresh_token(cache, session_id).await?;
+        let access_token = Self::create_access_token(uuid.clone(), login, session_id).await?;
+        let refresh_token = Self::create_refresh_token(cache, session_id, uuid).await?;
 
         Ok((access_token, refresh_token))
     }
@@ -264,11 +285,12 @@ impl AuthService {
     async fn create_refresh_token(
         cache: &CacheManager,
         session_id: i32,
+        uuid: String,
     ) -> Result<String, BackendError> {
         let refresh_token = uuid::Uuid::new_v4().to_string();
         cache
             .set(
-                &format!("session_id:{session_id}"),
+                &format!("session_id:{session_id}:{uuid}"),
                 refresh_token.deref(),
                 CONFIG.cookie_expresion_in,
             )
@@ -311,7 +333,10 @@ impl AuthService {
         .map_err(|_| BackendError::BadRequest("Invalid access token".into()))?;
 
         let refresh_store = cache
-            .get(&format!("session_id:{}", token_data.claims.session_id))
+            .get(&format!(
+                "session_id:{}:{}",
+                token_data.claims.session_id, token_data.claims.uuid
+            ))
             .await
             .ok_or(BackendError::BadRequest(
                 "Session expired or not found".into(),

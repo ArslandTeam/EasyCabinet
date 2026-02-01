@@ -20,7 +20,7 @@ pub async fn get_profile(
 ) -> Result<impl IntoResponse, BackendError> {
     let user = auth::jwt::extract_jwt_token(&jar).await?;
     let profile = UserService::get_profile(&state.conn, &state.storage, user.uuid).await?;
-    Ok(Json(profile))
+    Ok((StatusCode::OK, Json(profile)))
 }
 
 // TODO хуйня на постной масле. Надо логику на js переосмыслить и переписать
@@ -44,7 +44,7 @@ pub async fn update_profile(
 
         match name.as_str() {
             "is_alex" => {
-                let val = String::from_utf8_lossy(&data).trim().to_lowercase();
+                let val = String::from_utf8_lossy(&data).trim().to_ascii_lowercase();
                 match val.as_str() {
                     "true" => is_alex = true,
                     "false" => is_alex = false,
@@ -70,4 +70,17 @@ pub async fn update_profile(
     .await?;
 
     Ok(StatusCode::OK)
+}
+
+// TODO перенести в get_profile
+pub async fn get_account(
+    State(state): State<AppState>,
+    jar: SignedCookieJar,
+) -> Result<impl IntoResponse, BackendError> {
+    let jwt = auth::jwt::extract_jwt_token(&jar).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(UserService::get_account(&state.conn, jwt.uuid).await?),
+    ))
 }

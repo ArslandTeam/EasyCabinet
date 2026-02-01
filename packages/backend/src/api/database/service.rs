@@ -90,4 +90,23 @@ impl DatabaseService {
         sessions::Entity::delete_by_id(session_id).exec(db).await?;
         Ok(())
     }
+
+    pub async fn delete_sessions(db: &DatabaseConnection, uuid: &str) -> Result<(), DbErr> {
+        sessions::Entity::delete_many()
+            .filter(sessions::Column::Uuid.eq(uuid))
+            .exec(db)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_sessions(
+        db: &DatabaseConnection,
+        uuid: &str,
+    ) -> Result<Vec<sessions::Model>, DbErr> {
+        sessions::Entity::find()
+            .filter(Expr::col(sessions::Column::Uuid).eq(uuid))
+            .all(db)
+            .await
+    }
 }

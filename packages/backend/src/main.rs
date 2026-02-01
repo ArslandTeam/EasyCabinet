@@ -65,6 +65,7 @@ fn init_router(state: AppState) -> axum::Router {
         )
         .route("/auth/refresh", post(api::auth::controller::refresh))
         .route("/auth/logout", post(api::auth::controller::logout))
+        .route("/auth/logout_all", post(api::auth::controller::logout_all))
         .route(
             "/auth/reset-password",
             post(api::auth::controller::reset_password),
@@ -75,6 +76,7 @@ fn init_router(state: AppState) -> axum::Router {
         )
         .route("/users", get(api::user::controller::get_profile))
         .route("/users", put(api::user::controller::update_profile))
+        .route("/accounts", get(api::user::controller::get_account))
         .route("/aurora/auth", post(api::aurora::controller::auth))
         .route("/aurora/join", post(api::aurora::controller::join))
         .route(

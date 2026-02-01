@@ -5,7 +5,7 @@ use crate::{
         assets, auth,
         database::{entities::users, service::DatabaseService},
         storage::service::StorageService,
-        user,
+        user::{self, dto::ResponseAccountDTO},
     },
 };
 use migration::Expr;
@@ -26,6 +26,25 @@ impl UserService {
             .ok_or(BackendError::BadRequest("User not found".into()))?;
 
         Ok(Self::get_textures_data(storage, &user).await)
+    }
+
+    pub async fn get_account(
+        db: &DatabaseConnection,
+        uuid: String,
+    ) -> Result<user::dto::ResponseAccountDTO, BackendError> {
+        let user = DatabaseService::find_user(db, users::Column::Uuid, &uuid)
+            .await
+            .map_err(|_| BackendError::InternalError)?
+            .ok_or(BackendError::BadRequest("User not found".into()))?;
+
+        let sessions = DatabaseService::get_sessions(db, &uuid)
+            .await
+            .map_err(|_| BackendError::InternalError)?;
+
+        Ok(ResponseAccountDTO {
+            email: user.email,
+            sessions,
+        })
     }
 
     pub async fn get_textures_data(

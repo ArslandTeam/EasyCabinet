@@ -55,13 +55,13 @@ pub async fn refresh(
         .get("refresh_token")
         .ok_or(BackendError::BadRequest("No refresh token".into()))?
         .value()
-        .to_string();
+        .to_owned();
 
     let old_access_token = jar
         .get("access_token")
         .ok_or(BackendError::BadRequest("No access token".into()))?
         .value()
-        .to_string();
+        .to_owned();
 
     let (access_token, refresh_token) =
         AuthService::refresh(&state.cache, old_refresh_token, old_access_token).await?;
@@ -75,19 +75,38 @@ pub async fn logout(
     State(state): State<AppState>,
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
-    let refresh_token = jar.get("refresh_token").map(|c| c.value().to_string());
-    let access_token = jar.get("access_token").map(|c| c.value().to_string());
+    let refresh_token = jar
+        .get("refresh_token")
+        .map(|cookie| cookie.value().to_owned());
+    let access_token = jar
+        .get("access_token")
+        .map(|cookie| cookie.value().to_owned());
 
-    if let (Some(rf), Some(at)) = (refresh_token, access_token) {
-        AuthService::logout(&state.cache, &state.conn, rf, at).await;
-    }
+    AuthService::logout(&state.cache, &state.conn, refresh_token, access_token).await?;
 
     let jar = jar
-        .remove(Cookie::build(("refresh_token", "")).path("/auth").build())
+        .remove(Cookie::from("refresh_token"))
+        .remove(Cookie::build("access_token").path("/").build());
+
+    Ok((StatusCode::OK, jar))
+}
+
+// INFO and FIX после выхода из аккаунта остаётся некоторое время JWT_EXPIRES_IN
+pub async fn logout_all(
+    State(state): State<AppState>,
+    jar: SignedCookieJar,
+) -> Result<impl IntoResponse, BackendError> {
+    let jwt = jwt::extract_jwt_token(&jar).await?;
+
+    AuthService::logout_all(&state.cache, &state.conn, jwt.uuid).await?;
+
+    let jar = jar
+        .remove(Cookie::from("refresh_token"))
         .remove(Cookie::build(("access_token", "")).path("/").build());
 
     Ok((StatusCode::OK, jar))
 }
+
 pub async fn reset_password(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<dto::RequestResetPasswordDTO>,

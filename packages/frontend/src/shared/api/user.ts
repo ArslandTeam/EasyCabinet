@@ -8,6 +8,18 @@ interface Profile {
   is_alex: boolean;
 }
 
+interface Account {
+  email: string;
+  sessions: Session[];
+}
+
+interface Session {
+  id: string;
+  user_agent: string;
+  iat: string;
+}
+
+export const accountAtom = atom<Account | null>(null);
 export const profileAtom = atom<Profile | null>(null);
 
 export function getProfile() {
@@ -15,6 +27,18 @@ export function getProfile() {
     .get("users", { withCredentials: true })
     .then(({ data }) => {
       getDefaultStore().set(profileAtom, data);
+      if (data.accessToken) {
+        setBearerToken(data.accessToken);
+      }
+    })
+    .catch(() => {});
+}
+
+export function getAccount() {
+  axios
+    .get("accounts", { withCredentials: true })
+    .then(({ data }) => {
+      getDefaultStore().set(accountAtom, data);
       if (data.accessToken) {
         setBearerToken(data.accessToken);
       }
