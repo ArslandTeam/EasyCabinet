@@ -57,14 +57,8 @@ pub async fn refresh(
         .value()
         .to_owned();
 
-    let old_access_token = jar
-        .get("access_token")
-        .ok_or(BackendError::BadRequest("No access token".into()))?
-        .value()
-        .to_owned();
-
     let (access_token, refresh_token) =
-        AuthService::refresh(&state.cache, old_refresh_token, old_access_token).await?;
+        AuthService::refresh(&state.cache, old_refresh_token).await?;
 
     let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
     let jar = jwt::set_access_token(jar, access_token).await;
@@ -78,11 +72,8 @@ pub async fn logout(
     let refresh_token = jar
         .get("refresh_token")
         .map(|cookie| cookie.value().to_owned());
-    let access_token = jar
-        .get("access_token")
-        .map(|cookie| cookie.value().to_owned());
 
-    AuthService::logout(&state.cache, &state.conn, refresh_token, access_token).await?;
+    AuthService::logout(&state.cache, &state.conn, refresh_token).await?;
 
     let jar = jar
         .remove(Cookie::from("refresh_token"))
