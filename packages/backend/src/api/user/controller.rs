@@ -6,30 +6,27 @@ use crate::{
     },
 };
 use axum::{
-    Json,
+    Extension, Json,
     body::Bytes,
     extract::{Multipart, State},
     http::StatusCode,
     response::IntoResponse,
 };
-use axum_extra::extract::SignedCookieJar;
 
 pub async fn get_profile(
     State(state): State<AppState>,
-    jar: SignedCookieJar,
+    Extension(payload): Extension<auth::jwt::JwtPayload>,
 ) -> Result<impl IntoResponse, BackendError> {
-    let user = auth::jwt::extract_jwt_token(&jar).await?;
-    let profile = UserService::get_profile(&state.conn, &state.storage, user.uuid).await?;
+    let profile = UserService::get_profile(&state.conn, &state.storage, payload.uuid).await?;
     Ok((StatusCode::OK, Json(profile)))
 }
 
 // TODO хуйня на постной масле. Надо логику на js переосмыслить и переписать
 pub async fn update_profile(
     State(state): State<AppState>,
-    jar: SignedCookieJar,
+    Extension(payload): Extension<auth::jwt::JwtPayload>,
     mut multipart: Multipart,
 ) -> Result<impl IntoResponse, BackendError> {
-    let jwt = auth::jwt::extract_jwt_token(&jar).await?;
     let mut is_alex: bool = false;
     let mut skin: Option<Bytes> = None;
     let mut cape: Option<Bytes> = None;
@@ -62,7 +59,7 @@ pub async fn update_profile(
     UserService::update_profile(
         &state.conn,
         &state.storage,
-        jwt,
+        payload,
         profile,
         skin.as_deref(),
         cape.as_deref(),

@@ -199,6 +199,10 @@ impl AuthService {
         .await
         .map_err(|_| BackendError::InternalError)?;
 
+        DatabaseService::delete_sessions(db, &user.uuid)
+            .await
+            .map_err(|_| BackendError::InternalError)?;
+
         cache.delete(&format!("email_reset_token:{email}")).await?;
         cache.delete(&format!("reset_token:{reset_token}")).await?;
         cache

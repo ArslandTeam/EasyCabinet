@@ -52,7 +52,16 @@ fn init_router(state: AppState) -> axum::Router {
     use axum::routing::{get, post, put};
     use http::{Method, header};
 
-    axum::Router::new()
+    let private_routes = axum::Router::new()
+        .route("/auth/logout_all", post(api::auth::controller::logout_all))
+        .route("/users", get(api::user::controller::get_profile))
+        .route("/users", put(api::user::controller::update_profile))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            api::auth::jwt::auth_middleware,
+        ));
+
+    let routes = axum::Router::new()
         .route(
             "/",
             get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
@@ -65,7 +74,6 @@ fn init_router(state: AppState) -> axum::Router {
         )
         .route("/auth/refresh", post(api::auth::controller::refresh))
         .route("/auth/logout", post(api::auth::controller::logout))
-        .route("/auth/logout_all", post(api::auth::controller::logout_all))
         .route(
             "/auth/reset-password",
             post(api::auth::controller::reset_password),
@@ -74,8 +82,6 @@ fn init_router(state: AppState) -> axum::Router {
             "/auth/change-password",
             post(api::auth::controller::change_password),
         )
-        .route("/users", get(api::user::controller::get_profile))
-        .route("/users", put(api::user::controller::update_profile))
         .route("/aurora/auth", post(api::aurora::controller::auth))
         .route("/aurora/join", post(api::aurora::controller::join))
         .route(
@@ -83,7 +89,11 @@ fn init_router(state: AppState) -> axum::Router {
             post(api::aurora::controller::has_joined),
         )
         .route("/aurora/profile", post(api::aurora::controller::profile))
-        .route("/aurora/profiles", post(api::aurora::controller::profiles))
+        .route("/aurora/profiles", post(api::aurora::controller::profiles));
+
+    axum::Router::new()
+        .merge(routes)
+        .merge(private_routes)
         .nest_service(
             "/uploads",
             tower_http::services::ServeDir::new(std::path::Path::new("uploads")),

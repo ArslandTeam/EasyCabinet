@@ -1,9 +1,10 @@
-use crate::{BackendError, generate_config::CONFIG};
+use crate::{AppState, generate_config::CONFIG};
 use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar};
+use http::StatusCode;
 use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct JwtPayload {
     pub uuid: String,
     pub login: String,
@@ -28,10 +29,10 @@ pub async fn set_access_token(jar: SignedCookieJar, access_token: String) -> Sig
 }
 
 /// Передаётся ссылка на куки из [`SignedCookieJar`], извлекается и преобразуется в строку. В последствии декодидируется и проверяется валидность
-pub async fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, BackendError> {
+pub async fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, StatusCode> {
     let token = jar
         .get("access_token")
-        .ok_or(BackendError::BadRequest("No access token".into()))?
+        .ok_or(StatusCode::UNAUTHORIZED)?
         .value()
         .to_string();
 
@@ -40,7 +41,28 @@ pub async fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, Back
         &DecodingKey::from_secret(CONFIG.jwt_secret.as_bytes()),
         &Validation::default(),
     )
-    .map_err(|_| BackendError::BadRequest("Invalid token".into()))?;
+    .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     Ok(token.claims)
+}
+
+pub async fn auth_middleware(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    jar: SignedCookieJar,
+    mut req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, StatusCode> {
+    let payload = extract_jwt_token(&jar)
+        .await
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+    state
+        .cache
+        .get(&format!("session:{}:{}", payload.uuid, payload.session_id))
+        .await
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+
+    req.extensions_mut().insert(payload);
+
+    Ok(next.run(req).await)
 }

@@ -1,8 +1,12 @@
 use crate::{
     AppState, BackendError, ValidatedJson,
-    api::auth::{dto, jwt, service::AuthService},
+    api::auth::{
+        dto,
+        jwt::{self, JwtPayload},
+        service::AuthService,
+    },
 };
-use axum::{extract::State, http::StatusCode, response::IntoResponse};
+use axum::{Extension, extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::extract::{SignedCookieJar, cookie::Cookie};
 use http::{HeaderMap, header::USER_AGENT};
 
@@ -86,10 +90,9 @@ pub async fn logout(
 pub async fn logout_all(
     State(state): State<AppState>,
     jar: SignedCookieJar,
+    Extension(payload): Extension<JwtPayload>,
 ) -> Result<impl IntoResponse, BackendError> {
-    let jwt = jwt::extract_jwt_token(&jar).await?;
-
-    AuthService::logout_all(&state.cache, &state.conn, jwt.uuid).await?;
+    AuthService::logout_all(&state.cache, &state.conn, payload.uuid).await?;
 
     let jar = jar
         .remove(Cookie::from("refresh_token"))
