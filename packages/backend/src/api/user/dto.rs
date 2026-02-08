@@ -12,7 +12,6 @@ pub struct ResponseProfileDTO {
     pub is_alex: Option<bool>,
     pub skin_url: Option<String>,
     pub cape_url: Option<String>,
-    pub email: String,
     pub sessions: Vec<sessions::Model>,
 }
 

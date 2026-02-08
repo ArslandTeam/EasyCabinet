@@ -42,7 +42,6 @@ impl UserService {
             is_alex: user.is_alex,
             skin_url,
             cape_url,
-            email: user.email,
             sessions,
         })
     }
