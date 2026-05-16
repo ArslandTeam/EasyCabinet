@@ -77,7 +77,7 @@ pub async fn logout(
         .get("refresh_token")
         .map(|cookie| cookie.value().to_owned());
 
-    AuthService::logout(&state.cache, &state.conn, refresh_token).await?;
+    AuthService::logout(&state.cache, refresh_token).await?;
 
     let jar = jar
         .remove(Cookie::from("refresh_token"))
@@ -92,7 +92,7 @@ pub async fn logout_all(
     jar: SignedCookieJar,
     Extension(payload): Extension<JwtPayload>,
 ) -> Result<impl IntoResponse, BackendError> {
-    AuthService::logout_all(&state.cache, &state.conn, payload.uuid).await?;
+    AuthService::logout_all(&state.cache, payload.uuid).await?;
 
     let jar = jar
         .remove(Cookie::from("refresh_token"))

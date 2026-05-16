@@ -33,7 +33,7 @@ impl MigrationTrait for Migration {
                             .unique_key()
                             .not_null(),
                     )
-                    .col(ColumnDef::new(Users::Password).string_len(60).not_null())
+                    .col(ColumnDef::new(Users::Password).string_len(255).not_null())
                     .col(ColumnDef::new(Users::AccessToken).string_len(255).null())
                     .col(ColumnDef::new(Users::ServerId).string_len(255).null())
                     .col(ColumnDef::new(Users::SkinHash).string_len(255).null())

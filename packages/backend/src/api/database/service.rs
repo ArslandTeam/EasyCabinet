@@ -1,13 +1,10 @@
 use migration::Expr;
 use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, ExprTrait, InsertResult,
-    QueryFilter,
+    QueryFilter, SqlErr,
 };
 
-use crate::{
-    api::database::entities::{sessions, users},
-    generate_config::CONFIG,
-};
+use crate::{BackendError, api::database::entities::users};
 
 pub struct DatabaseService;
 
@@ -39,7 +36,7 @@ impl DatabaseService {
         login: String,
         password: String,
         email: String,
-    ) -> Result<InsertResult<users::ActiveModel>, DbErr> {
+    ) -> Result<InsertResult<users::ActiveModel>, BackendError> {
         let user = users::ActiveModel {
             uuid: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
             login: ActiveValue::Set(login),
@@ -48,7 +45,12 @@ impl DatabaseService {
             ..Default::default()
         };
 
-        users::Entity::insert(user).exec(db).await
+        users::Entity::insert(user).exec(db).await.map_err(|e| {
+          if let Some(SqlErr::UniqueConstraintViolation(_)) = e.sql_err() {
+            return BackendError::BadRequest("User already exists".into());
+          }
+          BackendError::InternalError
+        })
     }
 
     pub async fn update_user(
@@ -64,49 +66,5 @@ impl DatabaseService {
             .exec(db)
             .await?;
         Ok(())
-    }
-
-    pub async fn create_session(
-        db: &DatabaseConnection,
-        uuid: String,
-        user_agent: String,
-    ) -> Result<InsertResult<sessions::ActiveModel>, DbErr> {
-        let now = chrono::Utc::now();
-
-        let session = sessions::ActiveModel {
-            uuid: ActiveValue::Set(uuid),
-            user_agent: ActiveValue::Set(user_agent),
-            exp: ActiveValue::Set(
-                now + chrono::Duration::seconds(CONFIG.cookie_expresion_in as i64),
-            ),
-            iat: ActiveValue::Set(now),
-            ..Default::default()
-        };
-
-        sessions::Entity::insert(session).exec(db).await
-    }
-
-    pub async fn delete_session(db: &DatabaseConnection, session_id: i32) -> Result<(), DbErr> {
-        sessions::Entity::delete_by_id(session_id).exec(db).await?;
-        Ok(())
-    }
-
-    pub async fn delete_sessions(db: &DatabaseConnection, uuid: &str) -> Result<(), DbErr> {
-        sessions::Entity::delete_many()
-            .filter(sessions::Column::Uuid.eq(uuid))
-            .exec(db)
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn get_sessions(
-        db: &DatabaseConnection,
-        uuid: &str,
-    ) -> Result<Vec<sessions::Model>, DbErr> {
-        sessions::Entity::find()
-            .filter(Expr::col(sessions::Column::Uuid).eq(uuid))
-            .all(db)
-            .await
     }
 }

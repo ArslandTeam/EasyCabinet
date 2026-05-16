@@ -1,16 +1,14 @@
 use crate::{AppState, generate_config::CONFIG};
 use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar};
 use http::StatusCode;
-use jsonwebtoken::{DecodingKey, Validation, decode};
+use jwt_simple::prelude::MACLike;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct JwtPayload {
     pub uuid: String,
     pub login: String,
-    pub session_id: i32,
-    pub iat: u64,
-    pub exp: u64,
+    pub session_id: String,
 }
 
 pub async fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCookieJar {
@@ -30,20 +28,16 @@ pub async fn set_access_token(jar: SignedCookieJar, access_token: String) -> Sig
 
 /// Передаётся ссылка на куки из [`SignedCookieJar`], извлекается и преобразуется в строку. В последствии декодидируется и проверяется валидность
 pub async fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, StatusCode> {
-    let token = jar
-        .get("access_token")
-        .ok_or(StatusCode::UNAUTHORIZED)?
-        .value()
-        .to_string();
+    let cookie = jar.get("access_token").ok_or(StatusCode::UNAUTHORIZED)?;
+    let token_data = cookie.value();
 
-    let token = decode::<JwtPayload>(
-        &token,
-        &DecodingKey::from_secret(CONFIG.jwt_secret.as_bytes()),
-        &Validation::default(),
-    )
-    .map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let key = &CONFIG.jwt_secret;
 
-    Ok(token.claims)
+    let token = key
+        .verify_token::<JwtPayload>(token_data, None)
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+    Ok(token.custom)
 }
 
 pub async fn auth_middleware(
@@ -60,6 +54,7 @@ pub async fn auth_middleware(
         .cache
         .get(&format!("session:{}:{}", payload.uuid, payload.session_id))
         .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
     req.extensions_mut().insert(payload);

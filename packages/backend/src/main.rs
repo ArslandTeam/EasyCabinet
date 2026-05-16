@@ -1,33 +1,27 @@
-use std::{ops::Deref, sync::Arc};
-
 use crate::api::{cache_manager::CacheManager, storage::service::StorageService};
 use axum_extra::extract::cookie::Key;
+use std::{ops::Deref, sync::Arc};
 mod api;
 pub mod generate_config;
 use crate::generate_config::CONFIG;
 
 #[tokio::main]
-pub async fn main() {
+pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     generate_config::init();
     //"RUST_LOG=debug" or "RUST_LOG=info"
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .or_else(|_| {
-                    tracing_subscriber::EnvFilter::try_new(
-                        "axum_tracing_example=error,tower_http=warn",
-                    )
-                })
-                .unwrap(),
+            tracing_subscriber::EnvFilter::try_from_default_env().or_else(|_| {
+                tracing_subscriber::EnvFilter::try_new("axum_tracing_example=error,tower_http=warn")
+            })?,
         )
         .init();
 
     use migration::MigratorTrait;
 
-    let conn = sea_orm::Database::connect(&CONFIG.db_url)
-        .await
-        .expect("Database connection failed");
-    migration::Migrator::up(&conn, None).await.unwrap();
+    let conn = sea_orm::Database::connect(&CONFIG.db_url).await?;
+
+    migration::Migrator::up(&conn, None).await?;
 
     let cache = CacheManager::cache_init().await;
 
@@ -42,10 +36,12 @@ pub async fn main() {
         key,
     }));
 
-    let listener = tokio::net::TcpListener::bind(format!("{}:{}", CONFIG.host, CONFIG.port))
-        .await
-        .unwrap();
-    axum::serve(listener, init_router(state)).await.unwrap();
+    let listener =
+        tokio::net::TcpListener::bind(format!("{}:{}", CONFIG.host, CONFIG.port)).await?;
+
+    axum::serve(listener, init_router(state)).await?;
+
+    Ok(())
 }
 
 fn init_router(state: AppState) -> axum::Router {

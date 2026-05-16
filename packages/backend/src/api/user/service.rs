@@ -25,10 +25,6 @@ impl UserService {
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
 
-        let sessions = DatabaseService::get_sessions(db, &uuid)
-            .await
-            .map_err(|_| BackendError::InternalError)?;
-
         let skin_url = user
             .skin_hash
             .as_ref()
@@ -42,7 +38,6 @@ impl UserService {
             is_alex: user.is_alex,
             skin_url,
             cape_url,
-            sessions,
         })
     }
 
