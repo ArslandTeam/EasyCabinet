@@ -3,6 +3,7 @@ use crate::{
     BackendError,
     api::{
         assets, auth,
+        cache_manager::CacheManager,
         database::{entities::users, service::DatabaseService},
         storage::service::StorageService,
         user::dto,
@@ -18,6 +19,7 @@ impl UserService {
     pub async fn get_profile(
         db: &DatabaseConnection,
         storage: &StorageService,
+        cache: &CacheManager,
         uuid: String,
     ) -> Result<dto::ResponseProfileDTO, BackendError> {
         let user = DatabaseService::find_user(db, users::Column::Uuid, &uuid)
@@ -34,10 +36,15 @@ impl UserService {
             .as_ref()
             .map(|hash| storage.format_url("cape", hash));
 
+        let sessions = cache
+            .get_pattern(&format!("session:{}:*", user.uuid))
+            .await?;
+
         Ok(dto::ResponseProfileDTO {
             is_alex: user.is_alex,
             skin_url,
             cape_url,
+            sessions,
         })
     }
 

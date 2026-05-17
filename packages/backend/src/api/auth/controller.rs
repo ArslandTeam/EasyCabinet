@@ -19,8 +19,7 @@ pub async fn authentication(
     let user_agent = headers
         .get(USER_AGENT)
         .and_then(|v| v.to_str().ok())
-        .unwrap_or("Unknown")
-        .to_string();
+        .unwrap_or("Unknown");
 
     let (access_token, refresh_token) = AuthService::authentication(
         &state.conn,
@@ -53,6 +52,7 @@ pub async fn verify_email(
 
 pub async fn refresh(
     State(state): State<AppState>,
+    headers: HeaderMap,
     jar: SignedCookieJar,
 ) -> Result<impl IntoResponse, BackendError> {
     let old_refresh_token = jar
@@ -61,8 +61,13 @@ pub async fn refresh(
         .value()
         .to_owned();
 
+    let user_agent = headers
+        .get(USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("Unknown");
+
     let (access_token, refresh_token) =
-        AuthService::refresh(&state.cache, old_refresh_token).await?;
+        AuthService::refresh(&state.cache, old_refresh_token, user_agent).await?;
 
     let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
     let jar = jwt::set_access_token(jar, access_token).await;
@@ -86,7 +91,6 @@ pub async fn logout(
     Ok((StatusCode::OK, jar))
 }
 
-// INFO and FIX после выхода из аккаунта остаётся некоторое время JWT_EXPIRES_IN
 pub async fn logout_all(
     State(state): State<AppState>,
     jar: SignedCookieJar,

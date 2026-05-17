@@ -1,10 +1,9 @@
+use crate::{BackendError, api::database::entities::users};
 use migration::Expr;
 use sea_orm::{
     ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, ExprTrait, InsertResult,
     QueryFilter, SqlErr,
 };
-
-use crate::{BackendError, api::database::entities::users};
 
 pub struct DatabaseService;
 
@@ -46,10 +45,10 @@ impl DatabaseService {
         };
 
         users::Entity::insert(user).exec(db).await.map_err(|e| {
-          if let Some(SqlErr::UniqueConstraintViolation(_)) = e.sql_err() {
-            return BackendError::BadRequest("User already exists".into());
-          }
-          BackendError::InternalError
+            if let Some(SqlErr::UniqueConstraintViolation(_)) = e.sql_err() {
+                return BackendError::BadRequest("User already exists".into());
+            }
+            BackendError::InternalError
         })
     }
 

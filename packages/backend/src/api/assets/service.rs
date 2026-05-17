@@ -30,7 +30,7 @@ pub async fn upload_image(
     image: &[u8],
 ) -> Result<String, BackendError> {
     if image.is_empty() {
-        return Err(BackendError::BadRequest("Image data is empty".to_string()));
+        return Err(BackendError::BadRequest("Image data is empty".into()));
     }
 
     verify_asset(asset_type, image)?;

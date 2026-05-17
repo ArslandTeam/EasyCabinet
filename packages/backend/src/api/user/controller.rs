@@ -17,7 +17,8 @@ pub async fn get_profile(
     State(state): State<AppState>,
     Extension(payload): Extension<auth::jwt::JwtPayload>,
 ) -> Result<impl IntoResponse, BackendError> {
-    let profile = UserService::get_profile(&state.conn, &state.storage, payload.uuid).await?;
+    let profile =
+        UserService::get_profile(&state.conn, &state.storage, &state.cache, payload.uuid).await?;
     Ok((StatusCode::OK, Json(profile)))
 }
 

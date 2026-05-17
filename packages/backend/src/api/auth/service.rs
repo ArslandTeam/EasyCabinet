@@ -25,11 +25,11 @@ impl AuthService {
         cache: &CacheManager,
         login: String,
         password: String,
-        _user_agent: String,
+        user_agent: &str,
     ) -> Result<(String, String), BackendError> {
         let user = Self::verify_auth(db, &login, password).await?;
         let session_id = uuid::Uuid::new_v4().to_string();
-        Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id)
+        Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id, &user_agent)
             .await
             .map_err(|_| BackendError::InternalError)
     }
@@ -86,13 +86,21 @@ impl AuthService {
     pub async fn refresh(
         cache: &CacheManager,
         refresh_token: String,
+        user_agent: &str,
     ) -> Result<(String, String), BackendError> {
         let payload = Self::check_token(cache, refresh_token).await?;
         cache
             .delete(&format!("session:{}:{}", payload.uuid, payload.session_id))
             .await?;
         let session_id = uuid::Uuid::new_v4().to_string();
-        Self::generate_tokens_pair(cache, &payload.uuid, &payload.login, &session_id).await
+        Self::generate_tokens_pair(
+            cache,
+            &payload.uuid,
+            &payload.login,
+            &session_id,
+            &user_agent,
+        )
+        .await
     }
 
     pub async fn logout(
@@ -193,10 +201,12 @@ impl AuthService {
         uuid: &str,
         login: &str,
         session_id: &str,
+        user_agent: &str,
     ) -> Result<(String, String), BackendError> {
         let access_token =
             Self::create_jwt_token(uuid, login, session_id, CONFIG.jwt_expresion_in).await?;
-        let refresh_token = Self::create_refresh_token(cache, session_id, login, uuid).await?;
+        let refresh_token =
+            Self::create_refresh_token(cache, session_id, login, uuid, user_agent).await?;
 
         Ok((access_token, refresh_token))
     }
@@ -225,13 +235,14 @@ impl AuthService {
         session_id: &str,
         login: &str,
         uuid: &str,
+        user_agent: &str,
     ) -> Result<String, BackendError> {
         let refresh_token =
             Self::create_jwt_token(uuid, login, session_id, CONFIG.cookie_expresion_in).await?;
         cache
             .set(
                 &format!("session:{uuid}:{session_id}"),
-                "1",
+                user_agent,
                 CONFIG.cookie_expresion_in,
             )
             .await?;

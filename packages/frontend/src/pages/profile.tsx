@@ -222,28 +222,23 @@ export default function Profile() {
         </button>
       </form>
 
-      {/*TODO пределать разметку под нормальную*/}
-      <div className="space-y-3">
-        {profile?.sessions.map((session, index) => (
-          <div
-            key={session.id || index}
-            className="p-4 border border-zinc-700 bg-zinc-800 rounded-lg"
-          >
-            <p className="text-sm text-zinc-300">
-              <span className="font-semibold">Устройство:</span>{" "}
-              {session.user_agent}
-            </p>
-            <p className="text-xs text-zinc-500">
-              <span className="font-semibold">Дата входа:</span>{" "}
-              {new Date(session.iat).toLocaleString()}
-            </p>
-          </div>
-        ))}
-      </div>
+      <div className="flex flex-col items-center bg-neutral-900 p-3 rounded-sm">
+        <span className="font-bold">Сессии</span>
 
-      <a href="#" onClick={doLogoutAll}>
-        Выход
-      </a>
+        {profile?.sessions.map((userAgent, index) => (
+          <p key={index} className="mt-2">
+            {userAgent}
+          </p>
+        ))}
+
+        <a
+          href="#"
+          onClick={doLogoutAll}
+          className="mt-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
+        >
+          Выход
+        </a>
+      </div>
     </div>
   );
 }

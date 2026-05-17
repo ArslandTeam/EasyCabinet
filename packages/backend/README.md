@@ -2,14 +2,14 @@
 
 Для работы вам нужно на сервер установить такие программы как:
 
-- [MySQL](https://www.mysql.com/)
+- [PostgreSQL](https://www.postgresql.org/)
+- [Redis](https://redis.io) Нужен для хранения кеша ввиде токенов
 
 Опциональные программы:
 
-- [Redis](https://redis.io) Нужен для хранения кеша ввиде токенов
 - S3 Нужен для хранения текстур скинов и плащей игроков. Используйте Amazon или подобные ему хранилища (Minio как из вариантов)
 
-### Настройка MySQL
+### Настройка PostgreSQL
 
 Нужно создать базу данных:
 
@@ -44,7 +44,6 @@ chmod +x ./backend
 - COOKIE_SECURE - Использовать HTTPS для куки
 - COOKIES_SECRET - Секретный ключ для куки. **Должен быть длиной 64 бита!**
 - COOKIE_EXPIRES_IN - Через сколько куки станут не действительные
-- CACHE - Тип кеша. Может быть `redis` или `local`
 - REDIS_URL - Адрес подключения к Redis. Формат: `redis://host:port`
 - STORAGE_TEXTURES_TYPE - Тип хранилища текстур для скинов и плащей. Может быть `s3` или `local`
 - AWS_REGION - Регион сервера Amazon.
@@ -52,7 +51,7 @@ chmod +x ./backend
 - AWS_ACCESS_KEY_ID - Логин для подключения к S3 хранилищу
 - AWS_SECRET_ACCESS_KEY - Пароль от пользователя S3 хранилища
 - BUCKET_NAME - Имя контейнера для хранения текстур
-- DATABASE_URL - Адрес подключения к базе данных. Формат: `mysql://username:password@host:port/database`
+- DATABASE_URL - Адрес подключения к базе данных. Формат: `postgresql://username:password@host:port/database`
 - EMAIL_FROM - Адрес отправителя почты
 - SMTP - Адрес почтового сервера. Формат: `smtps://username:password@host:port`
 
