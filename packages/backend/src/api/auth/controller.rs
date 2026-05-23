@@ -46,7 +46,7 @@ pub async fn verify_email(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<dto::RequestVerifyEmailDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    AuthService::verify_email(&state.conn, &state.cache, payload.email).await?;
+    AuthService::verify_email(&state.conn, &state.cache, &payload.email).await?;
     Ok(StatusCode::OK)
 }
 
@@ -109,7 +109,7 @@ pub async fn reset_password(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<dto::RequestResetPasswordDTO>,
 ) -> Result<impl IntoResponse, BackendError> {
-    AuthService::reset_password(&state.conn, &state.cache, payload.email).await?;
+    AuthService::reset_password(&state.conn, &state.cache, &payload.email).await?;
     Ok(StatusCode::OK)
 }
 

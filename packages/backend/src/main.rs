@@ -1,4 +1,4 @@
-use crate::api::{cache_manager::CacheManager, storage::service::StorageService};
+use crate::api::{cache_manager::CacheManager, storage_manager::StorageService};
 use axum_extra::extract::cookie::Key;
 use std::{ops::Deref, sync::Arc};
 mod api;
@@ -19,7 +19,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     use migration::MigratorTrait;
 
-    let conn = sea_orm::Database::connect(&CONFIG.db_url).await?;
+    let conn = sea_orm::Database::connect(&CONFIG.database_url).await?;
 
     migration::Migrator::up(&conn, None).await?;
 
@@ -27,7 +27,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let storage = StorageService::storage_init().await;
 
-    let key = Key::from(CONFIG.cookie_secret.as_bytes());
+    let key = Key::from(CONFIG.cookies_secret.as_bytes());
 
     let state = AppState(Arc::new(InnerState {
         conn,

@@ -3,10 +3,7 @@ use crate::{BackendError, generate_config::CONFIG};
 #[derive(Clone)]
 enum StorageType {
     Local,
-    S3 {
-        client: aws_sdk_s3::Client,
-        bucket: String,
-    },
+    S3 { client: aws_sdk_s3::Client },
 }
 
 #[derive(Clone)]
@@ -24,10 +21,7 @@ impl StorageService {
                 let config = aws_config::load_from_env().await;
                 let clinet = aws_sdk_s3::Client::new(&config);
                 StorageService {
-                    storage: StorageType::S3 {
-                        client: clinet,
-                        bucket: CONFIG.bucket_name.clone(),
-                    },
+                    storage: StorageType::S3 { client: clinet },
                 }
             }
             _ => panic!("STORAGE_TEXTURES_TYPE not correct set"),
@@ -40,8 +34,8 @@ impl StorageService {
             StorageType::Local => {
                 format!("{}/uploads/{path}", CONFIG.backend_url)
             }
-            StorageType::S3 { bucket, .. } => {
-                format!("{}/{bucket}/{path}", CONFIG.aws_public_url)
+            StorageType::S3 { .. } => {
+                format!("{}/{}/{path}", CONFIG.aws_public_url, CONFIG.bucket_name)
             }
         }
     }
@@ -59,29 +53,34 @@ impl StorageService {
                 let file_path = std::path::PathBuf::from("uploads").join(path);
 
                 if let Some(parent) = file_path.parent() {
-                    tokio::fs::create_dir_all(parent)
-                        .await
-                        .map_err(|_| panic!("No permission create dir"))?;
+                    tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                        tracing::error!("Error create dir: {e}");
+                        BackendError::InternalError
+                    })?;
                 }
 
-                tokio::fs::write(file_path, file)
-                    .await
-                    .map_err(|_| panic!("No permission write file"))
+                tokio::fs::write(file_path, file).await.map_err(|e| {
+                    tracing::error!("Error write file: {e}");
+                    BackendError::InternalError
+                })
             }
-            StorageType::S3 { client, bucket } => client
+            StorageType::S3 { client, .. } => client
                 .put_object()
-                .bucket(bucket)
+                .bucket(&CONFIG.bucket_name)
                 .key(path)
                 .body(aws_sdk_s3::primitives::ByteStream::from(file.to_vec()))
                 .send()
                 .await
                 .map(|_| ())
-                .map_err(|_| BackendError::InternalError),
+                .map_err(|e| {
+                    tracing::error!("Error S3: {e}");
+                    BackendError::InternalError
+                }),
         }
     }
 
     fn format_path(scope: &str, hash: &str) -> String {
-        let prefix = &hash[..2.min(hash.len())];
+        let prefix = &hash[..2];
         format!("{scope}/{prefix}/{hash}")
     }
 

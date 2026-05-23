@@ -18,7 +18,7 @@ pub async fn set_access_token(jar: SignedCookieJar, access_token: String) -> Sig
         .domain(&CONFIG.cookie_domain)
         .same_site(SameSite::Lax)
         .max_age(time::Duration::seconds(
-            CONFIG.jwt_expresion_in.try_into().unwrap(),
+            CONFIG.jwt_expires_in.try_into().unwrap(),
         ))
         .secure(CONFIG.cookie_secure)
         .build();
@@ -26,7 +26,6 @@ pub async fn set_access_token(jar: SignedCookieJar, access_token: String) -> Sig
     jar.add(cookie)
 }
 
-/// Передаётся ссылка на куки из [`SignedCookieJar`], извлекается и преобразуется в строку. В последствии декодидируется и проверяется валидность
 pub async fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, StatusCode> {
     let cookie = jar.get("access_token").ok_or(StatusCode::UNAUTHORIZED)?;
     let token_data = cookie.value();

@@ -32,6 +32,7 @@ aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
 jwt-simple = { version = "0.12.16", default-features = false, features = ["pure-rust"] }
 futures = "0.3.32"
 argon2 = "0.5.3"
+envy = "0.4.2"
 
 [lints.clippy]
 single_match = "warn"

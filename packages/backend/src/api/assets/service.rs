@@ -1,4 +1,4 @@
-use crate::{BackendError, api::storage::service::StorageService};
+use crate::{BackendError, api::storage_manager::StorageService};
 use image::{ImageFormat, ImageReader};
 use std::io::Cursor;
 

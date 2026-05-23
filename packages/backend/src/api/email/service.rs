@@ -2,45 +2,52 @@ use crate::{BackendError, generate_config::CONFIG};
 use lettre::{Message, SmtpTransport, Transport, message::header::ContentType};
 
 async fn smtp_build() -> Result<SmtpTransport, BackendError> {
-    let mailer = SmtpTransport::from_url(&CONFIG.smpt)
-        .map_err(|_| BackendError::InternalError)?
+    let mailer = SmtpTransport::from_url(&CONFIG.smtp)
+        .map_err(|e| {
+            tracing::error!("{e}");
+            BackendError::InternalError
+        })?
         .build();
 
     Ok(mailer)
 }
 
-async fn send_email(to: String, subject: String, html: String) -> Result<(), BackendError> {
+async fn send_email(email: &str, subject: &str, html: String) -> Result<(), BackendError> {
     let message = Message::builder()
-        .from(CONFIG.email_from.parse().expect("Error parcing email_from"))
-        .to(to.parse().map_err(|_| BackendError::InternalError)?)
+        .from(CONFIG.email_from.clone())
+        .to(email.parse().map_err(|e| {
+            tracing::error!("{e}");
+            BackendError::InternalError
+        })?)
         .subject(subject)
         .header(ContentType::TEXT_HTML)
         .body(html)
-        .map_err(|_| BackendError::InternalError)?;
+        .map_err(|e| {
+            tracing::error!("{e}");
+            BackendError::InternalError
+        })?;
 
-    smtp_build()
-        .await?
-        .send(&message)
-        .map_err(|_| BackendError::InternalError)?;
+    smtp_build().await?.send(&message).map_err(|e| {
+        tracing::error!("{e}");
+        BackendError::InternalError
+    })?;
+
     Ok(())
 }
 
-pub async fn send_reset_password_email(
-    email: String,
-    reset_token: String,
-) -> Result<(), BackendError> {
+pub async fn send_reset_password_email(email: &str, reset_token: &str) -> Result<(), BackendError> {
     let html = render_reset_password_template(reset_token);
-    send_email(email, "Сброс пароля".to_string(), html).await?;
+    send_email(email, "Сброс пароля", html).await?;
     Ok(())
 }
 
-pub async fn send_verify_email(email: String, code: u32) -> Result<(), BackendError> {
+pub async fn send_verify_email(email: &str, code: u32) -> Result<(), BackendError> {
     let html = render_verify_email_template(code);
-    send_email(email, "Подтверждение почты".to_string(), html).await?;
+    send_email(email, "Подтверждение почты", html).await?;
     Ok(())
 }
 
-fn render_reset_password_template(reset_token: String) -> String {
+fn render_reset_password_template(reset_token: &str) -> String {
     let mut env = minijinja::Environment::new();
     env.add_template(
         "reset_password.html",

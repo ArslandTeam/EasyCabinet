@@ -4,7 +4,7 @@ use crate::{
         aurora,
         auth::service::AuthService,
         database::{entities::users, service::DatabaseService},
-        storage::service::StorageService,
+        storage_manager::StorageService,
         user::service::UserService,
     },
 };

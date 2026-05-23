@@ -1,70 +1,62 @@
 //! # Panics
+use serde::Deserialize;
+#[derive(Deserialize)]
 pub struct Config {
     pub host: String,
     pub port: String,
     pub frontend_url: String,
     pub backend_url: String,
+    #[serde(deserialize_with = "deserialize_jwt_key")]
     pub jwt_secret: jwt_simple::prelude::HS512Key,
-    pub jwt_expresion_in: u64,
+    pub jwt_expires_in: u64,
     pub cookie_secure: bool,
-    pub cookie_secret: String,
+    pub cookies_secret: String,
     pub cookie_domain: String,
-    pub cookie_expresion_in: u64,
+    pub cookie_expires_in: u64,
     pub redis_url: String,
     pub storage_textures_type: String,
     pub aws_region: String,
-    pub aws_endepoint_url: String,
+    pub aws_endpoint_url: String,
     pub aws_access_key_id: String,
     pub aws_secret_access_key: String,
     pub bucket_name: String,
     pub aws_public_url: String,
-    pub db_url: String,
-    pub email_from: String,
-    pub smpt: String,
+    pub database_url: String,
+    #[serde(deserialize_with = "deserialize_mailbox")]
+    pub email_from: lettre::message::Mailbox,
+    pub smtp: String,
 }
 
-pub fn get_env(key: &str) -> String {
+pub static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(|| {
     dotenvy::dotenv().ok();
-    std::env::var(key).unwrap_or_else(|_| {
-        panic!("Not set key in env: {key}");
-    })
-}
 
-#[allow(clippy::expect_used)]
-pub static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(|| Config {
-    host: get_env("HOST"),
-    port: get_env("PORT"),
-    frontend_url: get_env("FRONTEND_URL"),
-    backend_url: get_env("BACKEND_URL"),
-    jwt_secret: jwt_simple::prelude::HS512Key::from_bytes(get_env("JWT_SECRET").as_bytes()),
-    jwt_expresion_in: get_env("JWT_EXPIRES_IN")
-        .parse::<u64>()
-        .expect("JWT_EXPIRES_IN error parcing (64 bit)"),
-    cookie_secure: get_env("COOKIE_SECURE").eq_ignore_ascii_case("true"),
-    cookie_secret: get_env("COOKIES_SECRET"),
-    cookie_domain: get_env("COOKIE_DOMAIN"),
-    cookie_expresion_in: get_env("COOKIE_EXPIRES_IN")
-        .parse::<u64>()
-        .expect("COOKIE_EXPIRES_IN error parcing (64 bit)"),
-    redis_url: get_env("REDIS_URL"),
-    storage_textures_type: get_env("STORAGE_TEXTURES_TYPE"),
-    aws_region: get_env("AWS_REGION"),
-    aws_endepoint_url: get_env("AWS_ENDPOINT_URL"),
-    aws_access_key_id: get_env("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key: get_env("AWS_SECRET_ACCESS_KEY"),
-    bucket_name: get_env("BUCKET_NAME"),
-    aws_public_url: get_env("AWS_PUBLIC_URL"),
-    db_url: get_env("DATABASE_URL"),
-    email_from: get_env("EMAIL_FROM"),
-    smpt: get_env("SMTP"),
+    envy::from_env::<Config>().unwrap_or_else(|e| {
+        panic!("Missing or invalid environment variables: {e}");
+    })
 });
 
 pub fn init() {
     if !std::path::Path::new(".env").exists() {
         std::fs::write(".env", include_str!(".env"))
-            .unwrap_or_else(|_| panic!("Error generate file (check permission)"));
+            .unwrap_or_else(|e| panic!("Error generate file: {e}"));
 
         println!("Check .env config");
         std::process::exit(1)
     }
+}
+
+fn deserialize_jwt_key<'de, D>(deserializer: D) -> Result<jwt_simple::prelude::HS512Key, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    Ok(jwt_simple::prelude::HS512Key::from_bytes(s.as_bytes()))
+}
+
+fn deserialize_mailbox<'de, D>(deserializer: D) -> Result<lettre::message::Mailbox, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    s.parse().map_err(serde::de::Error::custom)
 }

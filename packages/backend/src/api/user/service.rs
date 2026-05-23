@@ -5,7 +5,7 @@ use crate::{
         assets, auth,
         cache_manager::CacheManager,
         database::{entities::users, service::DatabaseService},
-        storage::service::StorageService,
+        storage_manager::StorageService,
         user::dto,
     },
 };

@@ -59,7 +59,7 @@ impl AuthService {
     pub async fn verify_email(
         db: &DatabaseConnection,
         cache: &CacheManager,
-        email: String,
+        email: &str,
     ) -> Result<(), BackendError> {
         if DatabaseService::find_user(db, database::entities::users::Column::Email, &email)
             .await
@@ -125,7 +125,7 @@ impl AuthService {
     pub async fn reset_password(
         db: &DatabaseConnection,
         cache: &CacheManager,
-        email: String,
+        email: &str,
     ) -> Result<(), BackendError> {
         DatabaseService::find_user(db, database::entities::users::Column::Email, &email)
             .await
@@ -138,7 +138,7 @@ impl AuthService {
             .set(&format!("reset_token:{reset_token}"), &email, 1800)
             .await?;
 
-        email::service::send_reset_password_email(email, reset_token).await?;
+        email::service::send_reset_password_email(email, &reset_token).await?;
 
         Ok(())
     }
@@ -204,7 +204,7 @@ impl AuthService {
         user_agent: &str,
     ) -> Result<(String, String), BackendError> {
         let access_token =
-            Self::create_jwt_token(uuid, login, session_id, CONFIG.jwt_expresion_in).await?;
+            Self::create_jwt_token(uuid, login, session_id, CONFIG.jwt_expires_in).await?;
         let refresh_token =
             Self::create_refresh_token(cache, session_id, login, uuid, user_agent).await?;
 
@@ -238,12 +238,12 @@ impl AuthService {
         user_agent: &str,
     ) -> Result<String, BackendError> {
         let refresh_token =
-            Self::create_jwt_token(uuid, login, session_id, CONFIG.cookie_expresion_in).await?;
+            Self::create_jwt_token(uuid, login, session_id, CONFIG.cookie_expires_in).await?;
         cache
             .set(
                 &format!("session:{uuid}:{session_id}"),
                 user_agent,
-                CONFIG.cookie_expresion_in,
+                CONFIG.cookie_expires_in,
             )
             .await?;
 
@@ -261,7 +261,7 @@ impl AuthService {
             .same_site(cookie::SameSite::Lax)
             .secure(CONFIG.cookie_secure)
             .max_age(time::Duration::seconds(
-                CONFIG.cookie_expresion_in.try_into().unwrap(),
+                CONFIG.cookie_expires_in.try_into().unwrap(),
             ))
             .build();
 
