@@ -41,6 +41,7 @@ impl UserService {
             .await?;
 
         Ok(dto::ResponseProfileDTO {
+            login: user.login,
             is_alex: user.is_alex,
             skin_url,
             cape_url,

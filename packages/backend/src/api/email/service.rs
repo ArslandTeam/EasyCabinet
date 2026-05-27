@@ -1,16 +1,11 @@
 use crate::{BackendError, generate_config::CONFIG};
 use lettre::{Message, SmtpTransport, Transport, message::header::ContentType};
 
-async fn smtp_build() -> Result<SmtpTransport, BackendError> {
-    let mailer = SmtpTransport::from_url(&CONFIG.smtp)
-        .map_err(|e| {
-            tracing::error!("{e}");
-            BackendError::InternalError
-        })?
-        .build();
-
-    Ok(mailer)
-}
+static SMTP_MAILER: std::sync::LazyLock<SmtpTransport> = std::sync::LazyLock::new(|| {
+    SmtpTransport::from_url(&CONFIG.smtp)
+        .expect("Not correct format smtp url")
+        .build()
+});
 
 async fn send_email(email: &str, subject: &str, html: String) -> Result<(), BackendError> {
     let message = Message::builder()
@@ -27,7 +22,7 @@ async fn send_email(email: &str, subject: &str, html: String) -> Result<(), Back
             BackendError::InternalError
         })?;
 
-    smtp_build().await?.send(&message).map_err(|e| {
+    SMTP_MAILER.send(&message).map_err(|e| {
         tracing::error!("{e}");
         BackendError::InternalError
     })?;

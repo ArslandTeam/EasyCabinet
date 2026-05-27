@@ -29,7 +29,7 @@ impl AuthService {
     ) -> Result<(String, String), BackendError> {
         let user = Self::verify_auth(db, &login, password).await?;
         let session_id = uuid::Uuid::new_v4().to_string();
-        Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id, &user_agent)
+        Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id, user_agent)
             .await
             .map_err(|_| BackendError::InternalError)
     }
@@ -61,7 +61,7 @@ impl AuthService {
         cache: &CacheManager,
         email: &str,
     ) -> Result<(), BackendError> {
-        if DatabaseService::find_user(db, database::entities::users::Column::Email, &email)
+        if DatabaseService::find_user(db, database::entities::users::Column::Email, email)
             .await
             .map_err(|_| BackendError::InternalError)?
             .is_some()
@@ -98,7 +98,7 @@ impl AuthService {
             &payload.uuid,
             &payload.login,
             &session_id,
-            &user_agent,
+            user_agent,
         )
         .await
     }
@@ -127,7 +127,7 @@ impl AuthService {
         cache: &CacheManager,
         email: &str,
     ) -> Result<(), BackendError> {
-        DatabaseService::find_user(db, database::entities::users::Column::Email, &email)
+        DatabaseService::find_user(db, database::entities::users::Column::Email, email)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
@@ -135,7 +135,7 @@ impl AuthService {
         let reset_token = uuid::Uuid::new_v4().to_string();
 
         cache
-            .set(&format!("reset_token:{reset_token}"), &email, 1800)
+            .set(&format!("reset_token:{reset_token}"), email, 1800)
             .await?;
 
         email::service::send_reset_password_email(email, &reset_token).await?;
