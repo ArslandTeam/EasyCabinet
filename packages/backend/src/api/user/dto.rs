@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize)]
 pub struct ReqwestProfileDTO {
     pub is_alex: bool,
+    pub del_skin: bool,
+    pub del_cape: bool,
 }
 
 #[derive(Deserialize, Serialize)]

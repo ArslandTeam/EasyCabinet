@@ -47,6 +47,12 @@ impl StorageService {
         Ok(hash)
     }
 
+    pub async fn remove_file(&self, scope: &str, hash: &str) -> Result<(), BackendError> {
+        let path = Self::format_path(scope, hash);
+        self.remove_image_to_disk(&path).await?;
+        Ok(())
+    }
+
     async fn save_image_to_disk(&self, file: &[u8], path: &str) -> Result<(), BackendError> {
         match &self.storage {
             StorageType::Local => {
@@ -69,6 +75,30 @@ impl StorageService {
                 .bucket(&CONFIG.bucket_name)
                 .key(path)
                 .body(aws_sdk_s3::primitives::ByteStream::from(file.to_vec()))
+                .send()
+                .await
+                .map(|_| ())
+                .map_err(|e| {
+                    tracing::error!("Error S3: {e}");
+                    BackendError::InternalError
+                }),
+        }
+    }
+
+    async fn remove_image_to_disk(&self, path: &str) -> Result<(), BackendError> {
+        match &self.storage {
+            StorageType::Local => {
+                let file_path = std::path::PathBuf::from("uploads").join(path);
+
+                tokio::fs::remove_dir(file_path).await.map_err(|e| {
+                    tracing::error!("{e}");
+                    BackendError::InternalError
+                })
+            }
+            StorageType::S3 { client, .. } => client
+                .delete_object()
+                .bucket(&CONFIG.bucket_name)
+                .key(path)
                 .send()
                 .await
                 .map(|_| ())
