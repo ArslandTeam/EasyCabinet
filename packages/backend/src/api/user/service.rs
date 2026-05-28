@@ -78,7 +78,7 @@ impl UserService {
         cape: Option<&[u8]>,
     ) -> Result<(), BackendError> {
         let mut update_user =
-            users::Entity::update_many().filter(users::Column::Uuid.eq(&user.uuid));
+            users::Entity::update_many().filter(users::Column::Login.eq(&user.login));
 
         match (skin, profile.del_skin) {
             (Some(data), _) => {
@@ -87,7 +87,7 @@ impl UserService {
             }
             (None, true) => {
                 if let Some(current_user) =
-                    DatabaseService::find_user(db, users::Column::Uuid, &user.uuid)
+                    DatabaseService::find_user(db, users::Column::Login, &user.login)
                         .await
                         .map_err(|_| BackendError::InternalError)?
                     && let Some(old_hash) = current_user.skin_hash
@@ -107,7 +107,7 @@ impl UserService {
             }
             (None, true) => {
                 if let Some(current_user) =
-                    DatabaseService::find_user(db, users::Column::Uuid, &user.uuid)
+                    DatabaseService::find_user(db, users::Column::Login, &user.login)
                         .await
                         .map_err(|_| BackendError::InternalError)?
                     && let Some(old_hash) = current_user.cape_hash
