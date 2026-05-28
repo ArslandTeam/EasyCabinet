@@ -85,8 +85,8 @@ impl UserService {
                     AssetsService::delete_image(storage, AssetType::Skin, &old_hash).await?;
                 }
                 update_user = update_user
-                    .col_expr(users::Column::SkinHash, Expr::null())
-                    .col_expr(users::Column::IsAlex, Expr::null());
+                    .col_expr(users::Column::SkinHash, Expr::expr(Value::String(None)))
+                    .col_expr(users::Column::IsAlex, Expr::expr(Value::Bool(None)));
             }
             (None, false) => {}
         }
@@ -101,7 +101,7 @@ impl UserService {
                     AssetsService::delete_image(storage, AssetType::Cape, &old_hash).await?;
                 }
                 update_user =
-                    update_user.col_expr(users::Column::CapeHash, Expr::value(Value::String(None)));
+                    update_user.col_expr(users::Column::CapeHash, Expr::expr(Value::String(None)));
             }
             (None, false) => {}
         }
