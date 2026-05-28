@@ -10,9 +10,7 @@ pub struct ReqwestProfileDTO {
 #[derive(Deserialize, Serialize)]
 pub struct ResponseProfileDTO {
     pub login: String,
-    pub is_alex: Option<bool>,
-    pub skin_url: Option<String>,
-    pub cape_url: Option<String>,
+    pub textures: ResponseTexturesDTO, 
     pub sessions: Vec<String>,
 }
 

@@ -17,18 +17,6 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Value};
 pub struct UserService;
 
 impl UserService {
-    fn get_urls(storage: &StorageService, user: &users::Model) -> (Option<String>, Option<String>) {
-        let skin_url = user
-            .skin_hash
-            .as_ref()
-            .map(|hash| storage.format_url("skin", hash));
-        let cape_url = user
-            .cape_hash
-            .as_ref()
-            .map(|hash| storage.format_url("cape", hash));
-        (skin_url, cape_url)
-    }
-
     pub async fn get_profile(
         db: &DatabaseConnection,
         storage: &StorageService,
@@ -39,8 +27,7 @@ impl UserService {
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
-
-        let (skin_url, cape_url) = Self::get_urls(storage, &user);
+         let textures = Self::get_textures_data(storage, &user).await;
 
         let sessions = cache
             .get_pattern(&format!("session:{}:*", user.uuid))
@@ -48,9 +35,7 @@ impl UserService {
 
         Ok(dto::ResponseProfileDTO {
             login: user.login,
-            is_alex: user.is_alex,
-            skin_url,
-            cape_url,
+            textures,
             sessions,
         })
     }
@@ -59,8 +44,10 @@ impl UserService {
         storage: &StorageService,
         user: &users::Model,
     ) -> dto::ResponseTexturesDTO {
-        let (skin_url, cape_url) = Self::get_urls(storage, user);
-
+            let skin_url = user.skin_hash.as_ref()
+                .map(|hash| storage.format_url("skin", hash));                let cape_url = user.cape_hash.as_ref()
+                .map(|hash| storage.format_url("cape", hash));
+        
         dto::ResponseTexturesDTO {
             is_alex: user.is_alex,
             skin_url,
@@ -68,7 +55,6 @@ impl UserService {
         }
     }
 
-    //TODO делать один запрос к бд
     pub async fn update_profile(
         db: &DatabaseConnection,
         storage: &StorageService,
@@ -79,6 +65,8 @@ impl UserService {
     ) -> Result<(), BackendError> {
         let mut update_user =
             users::Entity::update_many().filter(users::Column::Uuid.eq(&user.uuid));
+        
+        let user = DatabaseService::find_user(db, users::Column::Uuid, &user.uuid).await.map_err(|_| BackendError::InternalError)?.ok_or(BackendError::BadRequest("User not found".into()))?;
 
         match (skin, profile.del_skin) {
             (Some(data), _) => {
@@ -86,11 +74,7 @@ impl UserService {
                 update_user = update_user.col_expr(users::Column::SkinHash, Expr::value(hash));
             }
             (None, true) => {
-                if let Some(current_user) =
-                    DatabaseService::find_user(db, users::Column::Uuid, &user.uuid)
-                        .await
-                        .map_err(|_| BackendError::InternalError)?
-                    && let Some(old_hash) = current_user.skin_hash
+                if let Some(old_hash) = user.skin_hash
                 {
                     AssetsService::delete_image(storage, AssetType::Skin, &old_hash).await?;
                 }
@@ -106,11 +90,7 @@ impl UserService {
                 update_user = update_user.col_expr(users::Column::CapeHash, Expr::value(hash));
             }
             (None, true) => {
-                if let Some(current_user) =
-                    DatabaseService::find_user(db, users::Column::Uuid, &user.uuid)
-                        .await
-                        .map_err(|_| BackendError::InternalError)?
-                    && let Some(old_hash) = current_user.cape_hash
+                if let Some(old_hash) = user.cape_hash
                 {
                     AssetsService::delete_image(storage, AssetType::Cape, &old_hash).await?;
                 }
