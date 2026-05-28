@@ -128,4 +128,30 @@ impl UserService {
             .map_err(|_| BackendError::InternalError)?;
         Ok(())
     }
+
+    pub async fn change_email(
+        db: &DatabaseConnection,
+        cache: &CacheManager,
+        uuid: &str,
+        data: dto::RequestChangeEmail,
+    ) -> Result<(), BackendError> {
+        let code = cache
+            .get_del(&format!("verify_code_email:{}", data.email))
+            .await?;
+
+        if code != Some(data.code.to_string()) {
+            return Err(BackendError::BadRequest(
+                "Invalid or expired email code".into(),
+            ));
+        }
+
+        users::Entity::update_many()
+            .filter(users::Column::Uuid.eq(uuid))
+            .col_expr(users::Column::Email, Expr::value(data.email))
+            .exec(db)
+            .await
+            .map_err(|_| BackendError::InternalError)?;
+
+        Ok(())
+    }
 }

@@ -22,7 +22,14 @@ pub struct ResponseTexturesDTO {
     pub cape_url: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Validate)]
+#[derive(Deserialize, Validate)]
 pub struct RequestChangePassword {
     pub password: String,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct RequestChangeEmail {
+    #[validate(email)]
+    pub email: String,
+    pub code: u32,
 }

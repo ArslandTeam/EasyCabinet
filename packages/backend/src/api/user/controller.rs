@@ -83,10 +83,20 @@ impl UserControler {
 
     pub async fn change_password(
         State(state): State<AppState>,
-        Extension(exc): Extension<auth::jwt::JwtPayload>,
+        Extension(jwt): Extension<auth::jwt::JwtPayload>,
         ValidatedJson(payload): ValidatedJson<dto::RequestChangePassword>,
     ) -> Result<impl IntoResponse, BackendError> {
-        UserService::change_password(&state.db, &exc.uuid, &payload.password).await?;
+        UserService::change_password(&state.db, &jwt.uuid, &payload.password).await?;
+
+        Ok(StatusCode::OK)
+    }
+
+    pub async fn change_email(
+        State(state): State<AppState>,
+        Extension(jwt): Extension<auth::jwt::JwtPayload>,
+        ValidatedJson(payload): ValidatedJson<dto::RequestChangeEmail>,
+    ) -> Result<impl IntoResponse, BackendError> {
+        UserService::change_email(&state.db, &state.cache, &jwt.uuid, payload).await?;
 
         Ok(StatusCode::OK)
     }

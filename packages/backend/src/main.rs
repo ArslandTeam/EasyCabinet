@@ -55,6 +55,7 @@ fn init_router(state: AppState) -> axum::Router {
             "/users/change-password",
             put(UserControler::change_password),
         )
+        .route("/users/change-email", put(UserControler::change_email))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             api::auth::jwt::auth_middleware,
