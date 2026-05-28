@@ -78,7 +78,9 @@ impl UserService {
         match (skin, profile.del_skin) {
             (Some(data), _) => {
                 let hash = AssetsService::upload_image(storage, AssetType::Skin, data).await?;
-                update_user = update_user.col_expr(users::Column::SkinHash, Expr::value(hash));
+                update_user = update_user
+                    .col_expr(users::Column::SkinHash, Expr::value(hash))
+                    .col_expr(users::Column::IsAlex, Expr::value(profile.is_alex));
             }
             (None, true) => {
                 if let Some(old_hash) = user.skin_hash {
@@ -105,8 +107,6 @@ impl UserService {
             }
             (None, false) => {}
         }
-
-        update_user = update_user.col_expr(users::Column::IsAlex, Expr::value(profile.is_alex));
 
         update_user
             .exec(db)
