@@ -16,7 +16,6 @@ use axum_extra::extract::{SignedCookieJar, cookie};
 use jwt_simple::{claims::Claims, prelude::*};
 use sea_orm::DatabaseConnection;
 
-#[derive(Default)]
 pub struct AuthService;
 
 impl AuthService {
@@ -192,7 +191,7 @@ impl AuthService {
         if Self::check_password(password, user.password.clone()).await {
             Ok(user)
         } else {
-            Err(BackendError::BadRequest("Invalid password".into()))
+            Err(BackendError::Unauthorized("Invalid password".into()))
         }
     }
 
@@ -275,7 +274,7 @@ impl AuthService {
         let key = &CONFIG.jwt_secret;
         let token_data = key
             .verify_token::<auth::jwt::JwtPayload>(&token, None)
-            .map_err(|_| BackendError::BadRequest("Invalid refresh token".into()))?;
+            .map_err(|_| BackendError::Unauthorized("Invalid refresh token".into()))?;
 
         let claims = token_data.custom;
 
@@ -284,7 +283,7 @@ impl AuthService {
             .await?
             .is_none()
         {
-            return Err(BackendError::BadRequest("Session revoked".into()));
+            return Err(BackendError::Unauthorized("Session revoked".into()));
         }
 
         Ok(claims)

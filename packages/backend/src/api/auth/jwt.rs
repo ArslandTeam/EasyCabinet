@@ -1,10 +1,8 @@
-use crate::{AppState, generate_config::CONFIG};
+use crate::{AppState, BackendError, generate_config::CONFIG};
 use axum_extra::extract::cookie::{Cookie, SameSite, SignedCookieJar};
-use http::StatusCode;
-use jwt_simple::prelude::MACLike;
-use serde::{Deserialize, Serialize};
+use jwt_simple::prelude::*;
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct JwtPayload {
     pub uuid: String,
     pub login: String,
@@ -26,15 +24,17 @@ pub async fn set_access_token(jar: SignedCookieJar, access_token: String) -> Sig
     jar.add(cookie)
 }
 
-pub async fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, StatusCode> {
-    let cookie = jar.get("access_token").ok_or(StatusCode::UNAUTHORIZED)?;
+pub async fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, BackendError> {
+    let cookie = jar
+        .get("access_token")
+        .ok_or(BackendError::Unauthorized("Not found access token".into()))?;
     let token_data = cookie.value();
 
     let key = &CONFIG.jwt_secret;
 
     let token = key
         .verify_token::<JwtPayload>(token_data, None)
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        .map_err(|_| BackendError::Unauthorized("Not valid access token".into()))?;
 
     Ok(token.custom)
 }
@@ -44,17 +44,15 @@ pub async fn auth_middleware(
     jar: SignedCookieJar,
     mut req: axum::extract::Request,
     next: axum::middleware::Next,
-) -> Result<axum::response::Response, StatusCode> {
-    let payload = extract_jwt_token(&jar)
-        .await
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+) -> Result<axum::response::Response, BackendError> {
+    let payload = extract_jwt_token(&jar).await?;
 
     state
         .cache
         .get(&format!("session:{}:{}", payload.uuid, payload.session_id))
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::UNAUTHORIZED)?;
+        .map_err(|_| BackendError::InternalError)?
+        .ok_or(BackendError::Unauthorized("Not valid session".into()))?;
 
     req.extensions_mut().insert(payload);
 

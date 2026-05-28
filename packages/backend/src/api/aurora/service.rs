@@ -12,7 +12,6 @@ use axum::Json;
 use sea_orm::DatabaseConnection;
 use serde_json::{Value, json};
 
-#[derive(Default)]
 pub struct AuroraService;
 
 impl AuroraService {

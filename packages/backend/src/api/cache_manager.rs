@@ -2,7 +2,6 @@ use crate::{BackendError, generate_config::CONFIG};
 use futures::TryStreamExt;
 use redis::AsyncCommands;
 
-#[derive(Clone)]
 pub struct CacheManager {
     redis: redis::aio::MultiplexedConnection,
 }

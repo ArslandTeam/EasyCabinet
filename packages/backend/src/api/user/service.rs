@@ -13,7 +13,6 @@ use crate::{
 use migration::Expr;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Value};
 
-#[derive(Default)]
 pub struct UserService;
 
 impl UserService {
@@ -27,7 +26,7 @@ impl UserService {
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
-         let textures = Self::get_textures_data(storage, &user).await;
+        let textures = Self::get_textures_data(storage, &user).await;
 
         let sessions = cache
             .get_pattern(&format!("session:{}:*", user.uuid))
@@ -44,10 +43,15 @@ impl UserService {
         storage: &StorageService,
         user: &users::Model,
     ) -> dto::ResponseTexturesDTO {
-            let skin_url = user.skin_hash.as_ref()
-                .map(|hash| storage.format_url("skin", hash));                let cape_url = user.cape_hash.as_ref()
-                .map(|hash| storage.format_url("cape", hash));
-        
+        let skin_url = user
+            .skin_hash
+            .as_ref()
+            .map(|hash| storage.format_url("skin", hash));
+        let cape_url = user
+            .cape_hash
+            .as_ref()
+            .map(|hash| storage.format_url("cape", hash));
+
         dto::ResponseTexturesDTO {
             is_alex: user.is_alex,
             skin_url,
@@ -59,14 +63,17 @@ impl UserService {
         db: &DatabaseConnection,
         storage: &StorageService,
         user: auth::jwt::JwtPayload,
-        profile: dto::ReqwestProfileDTO,
+        profile: dto::RequestProfileDTO,
         skin: Option<&[u8]>,
         cape: Option<&[u8]>,
     ) -> Result<(), BackendError> {
         let mut update_user =
             users::Entity::update_many().filter(users::Column::Uuid.eq(&user.uuid));
-        
-        let user = DatabaseService::find_user(db, users::Column::Uuid, &user.uuid).await.map_err(|_| BackendError::InternalError)?.ok_or(BackendError::BadRequest("User not found".into()))?;
+
+        let user = DatabaseService::find_user(db, users::Column::Uuid, &user.uuid)
+            .await
+            .map_err(|_| BackendError::InternalError)?
+            .ok_or(BackendError::BadRequest("User not found".into()))?;
 
         match (skin, profile.del_skin) {
             (Some(data), _) => {
@@ -74,12 +81,12 @@ impl UserService {
                 update_user = update_user.col_expr(users::Column::SkinHash, Expr::value(hash));
             }
             (None, true) => {
-                if let Some(old_hash) = user.skin_hash
-                {
+                if let Some(old_hash) = user.skin_hash {
                     AssetsService::delete_image(storage, AssetType::Skin, &old_hash).await?;
                 }
-                update_user =
-                    update_user.col_expr(users::Column::SkinHash, Expr::value(Value::String(None)));
+                update_user = update_user
+                    .col_expr(users::Column::SkinHash, Expr::null())
+                    .col_expr(users::Column::IsAlex, Expr::null());
             }
             (None, false) => {}
         }
@@ -90,8 +97,7 @@ impl UserService {
                 update_user = update_user.col_expr(users::Column::CapeHash, Expr::value(hash));
             }
             (None, true) => {
-                if let Some(old_hash) = user.cape_hash
-                {
+                if let Some(old_hash) = user.cape_hash {
                     AssetsService::delete_image(storage, AssetType::Cape, &old_hash).await?;
                 }
                 update_user =
@@ -103,6 +109,20 @@ impl UserService {
         update_user = update_user.col_expr(users::Column::IsAlex, Expr::value(profile.is_alex));
 
         update_user
+            .exec(db)
+            .await
+            .map_err(|_| BackendError::InternalError)?;
+        Ok(())
+    }
+
+    pub async fn change_password(
+        db: &DatabaseConnection,
+        uuid: &str,
+        password: &str,
+    ) -> Result<(), BackendError> {
+        users::Entity::update_many()
+            .filter(users::Column::Uuid.eq(uuid))
+            .col_expr(users::Column::Password, Expr::value(password))
             .exec(db)
             .await
             .map_err(|_| BackendError::InternalError)?;

@@ -1,4 +1,8 @@
-use crate::api::{cache_manager::CacheManager, storage_manager::StorageService};
+use crate::api::{
+    aurora::controller::AuroraController, auth::controller::AuthController,
+    cache_manager::CacheManager, storage_manager::StorageService, user::controller::UserControler,
+};
+use axum::http::{Method, StatusCode, header};
 use axum_extra::extract::cookie::Key;
 use std::{ops::Deref, sync::Arc};
 mod api;
@@ -18,19 +22,15 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     use migration::MigratorTrait;
-
-    let conn = sea_orm::Database::connect(&CONFIG.database_url).await?;
-
-    migration::Migrator::up(&conn, None).await?;
+    let db = sea_orm::Database::connect(&CONFIG.database_url).await?;
+    migration::Migrator::up(&db, None).await?;
 
     let cache = CacheManager::cache_init().await;
-
     let storage = StorageService::storage_init().await;
-
     let key = Key::from(CONFIG.cookies_secret.as_bytes());
 
     let state = AppState(Arc::new(InnerState {
-        conn,
+        db,
         cache,
         storage,
         key,
@@ -46,12 +46,15 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn init_router(state: AppState) -> axum::Router {
     use axum::routing::{get, post, put};
-    use http::{Method, header};
 
     let private_routes = axum::Router::new()
-        .route("/auth/logout_all", post(api::auth::controller::logout_all))
-        .route("/users", get(api::user::controller::get_profile))
-        .route("/users", put(api::user::controller::update_profile))
+        .route("/auth/logout_all", post(AuthController::logout_all))
+        .route("/users", get(UserControler::get_profile))
+        .route("/users", put(UserControler::update_profile))
+        .route(
+            "/users/change-password",
+            put(UserControler::change_password),
+        )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             api::auth::jwt::auth_middleware,
@@ -62,30 +65,21 @@ fn init_router(state: AppState) -> axum::Router {
             "/",
             get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
         )
-        .route("/auth/login", post(api::auth::controller::authentication))
-        .route("/auth/register", post(api::auth::controller::register))
-        .route(
-            "/auth/verify-email",
-            post(api::auth::controller::verify_email),
-        )
-        .route("/auth/refresh", post(api::auth::controller::refresh))
-        .route("/auth/logout", post(api::auth::controller::logout))
-        .route(
-            "/auth/reset-password",
-            post(api::auth::controller::reset_password),
-        )
+        .route("/auth/login", post(AuthController::authentication))
+        .route("/auth/register", post(AuthController::register))
+        .route("/auth/verify-email", post(AuthController::verify_email))
+        .route("/auth/refresh", post(AuthController::refresh))
+        .route("/auth/logout", post(AuthController::logout))
+        .route("/auth/reset-password", post(AuthController::reset_password))
         .route(
             "/auth/change-password",
-            post(api::auth::controller::change_password),
+            post(AuthController::change_password),
         )
-        .route("/aurora/auth", post(api::aurora::controller::auth))
-        .route("/aurora/join", post(api::aurora::controller::join))
-        .route(
-            "/aurora/hasJoined",
-            post(api::aurora::controller::has_joined),
-        )
-        .route("/aurora/profile", post(api::aurora::controller::profile))
-        .route("/aurora/profiles", post(api::aurora::controller::profiles));
+        .route("/aurora/auth", post(AuroraController::auth))
+        .route("/aurora/join", post(AuroraController::join))
+        .route("/aurora/hasJoined", post(AuroraController::has_joined))
+        .route("/aurora/profile", post(AuroraController::profile))
+        .route("/aurora/profiles", post(AuroraController::profiles));
 
     axum::Router::new()
         .merge(routes)
@@ -127,7 +121,7 @@ impl Deref for AppState {
 }
 
 struct InnerState {
-    conn: sea_orm::DatabaseConnection,
+    db: sea_orm::DatabaseConnection,
     cache: CacheManager,
     storage: StorageService,
     key: Key,
@@ -183,6 +177,7 @@ where
 pub enum BackendError {
     BadRequest(String),
     BadRequestAurora(String),
+    Unauthorized(String),
     InternalError,
 }
 
@@ -191,18 +186,21 @@ impl axum::response::IntoResponse for BackendError {
     fn into_response(self) -> axum::response::Response {
         match self {
             BackendError::BadRequest(msg) => (
-                axum::http::StatusCode::BAD_REQUEST,
+                StatusCode::BAD_REQUEST,
                 axum::Json(serde_json::json!({"message": msg})),
             )
                 .into_response(),
             BackendError::BadRequestAurora(msg) => (
-                axum::http::StatusCode::BAD_REQUEST,
+                StatusCode::BAD_REQUEST,
                 axum::Json(serde_json::json!({"success": false, "error": msg})),
             )
                 .into_response(),
-            BackendError::InternalError => {
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
+            BackendError::Unauthorized(msg) => (
+                StatusCode::UNAUTHORIZED,
+                axum::Json(serde_json::json!({"message": msg})),
+            )
+                .into_response(),
+            BackendError::InternalError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }
     }
 }

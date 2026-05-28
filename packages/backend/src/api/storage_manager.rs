@@ -1,12 +1,10 @@
 use crate::{BackendError, generate_config::CONFIG};
 
-#[derive(Clone)]
 enum StorageType {
     Local,
     S3 { client: aws_sdk_s3::Client },
 }
 
-#[derive(Clone)]
 pub struct StorageService {
     storage: StorageType,
 }
