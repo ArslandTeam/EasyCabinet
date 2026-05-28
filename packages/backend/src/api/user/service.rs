@@ -112,7 +112,7 @@ impl UserService {
                         .map_err(|_| BackendError::InternalError)?
                     && let Some(old_hash) = current_user.cape_hash
                 {
-                    AssetsService::delete_image(storage, AssetType::Skin, &old_hash).await?;
+                    AssetsService::delete_image(storage, AssetType::Cape, &old_hash).await?;
                 }
                 update_user =
                     update_user.col_expr(users::Column::CapeHash, Expr::value(Value::String(None)));

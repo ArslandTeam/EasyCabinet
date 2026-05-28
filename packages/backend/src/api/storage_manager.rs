@@ -90,7 +90,7 @@ impl StorageService {
             StorageType::Local => {
                 let file_path = std::path::PathBuf::from("uploads").join(path);
 
-                tokio::fs::remove_dir(file_path).await.map_err(|e| {
+                tokio::fs::remove_file(file_path).await.map_err(|e| {
                     tracing::error!("{e}");
                     BackendError::InternalError
                 })
