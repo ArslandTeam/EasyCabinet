@@ -90,7 +90,10 @@ impl UserService {
                     .col_expr(users::Column::SkinHash, Expr::expr(Value::String(None)))
                     .col_expr(users::Column::IsAlex, Expr::expr(Value::Bool(None)));
             }
-            (None, false) => {}
+            (None, false) => {
+                update_user =
+                    update_user.col_expr(users::Column::IsAlex, Expr::value(profile.is_alex));
+            }
         }
 
         match (cape, profile.del_cape) {
