@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { refresh } from "../shared/api";
 import { BrowserRouter, Routes, Route } from "react-router";
 import Layouts from "./layouts";
 import Register from "../pages/register";
@@ -9,11 +8,16 @@ import ForgotPassword from "../pages/forgot-password";
 import ChangePassword from "../pages/change-password";
 import Profile from "../pages/profile";
 import Index from "../pages/index";
+import { useAuth } from "../entities/auth/hooks";
+import { AuthProvide } from "../entities/auth/provide";
 
-function App() {
+function AppContent() {
+  const { checkAuth } = useAuth();
+
   useEffect(() => {
-    refresh();
-  }, []);
+    checkAuth();
+  }, [checkAuth]);
+
   return (
     <BrowserRouter>
       <Routes>
@@ -28,6 +32,14 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvide>
+      <AppContent />
+    </AuthProvide>
   );
 }
 

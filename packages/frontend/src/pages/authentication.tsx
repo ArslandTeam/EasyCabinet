@@ -1,9 +1,11 @@
 import { useNavigate } from "react-router";
 import { failure } from "../shared/lib";
 import { authentication } from "../shared/api";
+import { useAuth } from "../entities/auth";
 
 function Authentication() {
   const navigate = useNavigate();
+  const { loginSuccess } = useAuth();
 
   const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -18,6 +20,7 @@ function Authentication() {
     }
 
     if (await authentication(login, password)) {
+      loginSuccess();
       navigate("/profile");
     }
   };

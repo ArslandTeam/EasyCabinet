@@ -13,7 +13,6 @@
     "npm:eslint-plugin-react-refresh@~0.4.22": "0.4.24_eslint@9.39.0",
     "npm:eslint@^9.36.0": "9.39.0",
     "npm:globals@^16.4.0": "16.5.0",
-    "npm:jotai@^2.15.1": "2.15.1_@types+react@19.2.2_react@19.2.0",
     "npm:notiflix@^3.2.8": "3.2.8",
     "npm:react-dom@^19.1.1": "19.2.0_react@19.2.0",
     "npm:react-icons@^5.5.0": "5.5.0_react@19.2.0",
@@ -1314,17 +1313,6 @@
       "integrity": "sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==",
       "bin": true
     },
-    "jotai@2.15.1_@types+react@19.2.2_react@19.2.0": {
-      "integrity": "sha512-yHT1HAZ3ba2Q8wgaUQ+xfBzEtcS8ie687I8XVCBinfg4bNniyqLIN+utPXWKQE93LMF5fPbQSVRZqgpcN5yd6Q==",
-      "dependencies": [
-        "@types/react",
-        "react"
-      ],
-      "optionalPeers": [
-        "@types/react",
-        "react"
-      ]
-    },
     "js-tokens@4.0.0": {
       "integrity": "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=="
     },
@@ -1816,7 +1804,6 @@
         "npm:eslint-plugin-react-refresh@~0.4.22",
         "npm:eslint@^9.36.0",
         "npm:globals@^16.4.0",
-        "npm:jotai@^2.15.1",
         "npm:notiflix@^3.2.8",
         "npm:react-dom@^19.1.1",
         "npm:react-icons@^5.5.0",

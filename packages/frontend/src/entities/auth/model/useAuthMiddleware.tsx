@@ -1,21 +1,16 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { isAuthedAtom, isLoadedAtom } from "../shared/api";
-import { useAtomValue } from "jotai";
-
+import { useAuth } from "../hooks";
 export function useAuthMiddleware() {
   const navigate = useNavigate();
-
-  const isLoaded = useAtomValue(isLoadedAtom);
-  const isAuthed = useAtomValue(isAuthedAtom);
+  const { isAuthed, isLoaded } = useAuth();
 
   useEffect(() => {
     if (!isLoaded) {
       return;
     }
-
     if (!isAuthed) {
       navigate("/authentication", { replace: true });
     }
-  });
+  }, [isAuthed, isLoaded, navigate]);
 }

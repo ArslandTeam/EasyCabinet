@@ -1,36 +1,29 @@
 import { IdleAnimation, SkinViewer } from "skinview3d";
-import {
-  editProfile,
-  getProfile,
-  isAuthedAtom,
-  isLoadedAtom,
-  logout_all,
-  profileAtom,
-} from "../shared/api";
+import { editProfile, logout_all } from "../shared/api";
 import { useEffect, useRef, useState } from "react";
-import { useAtomValue } from "jotai";
-import { useAuthMiddleware } from "../hooks/useAuthMiddleware";
+import { useAuthMiddleware } from "../entities/auth/model/useAuthMiddleware";
 import { failure } from "../shared/lib";
 import { useNavigate } from "react-router";
+import { useAuth } from "../entities/auth";
 
 export default function Profile() {
   useAuthMiddleware();
+  const { isAuthed, isLoaded, profile, fetchProfile, logoutSuccess } =
+    useAuth();
   const [skinType, setSkinType] = useState<boolean>(false);
-  const profile = useAtomValue(profileAtom);
   const skinViewer = useRef<SkinViewer | null>(null);
   const skinCanvas = useRef<HTMLCanvasElement>(null);
-  const isLoaded = useAtomValue(isLoadedAtom);
-  const isAuthed = useAtomValue(isAuthedAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isLoaded && isAuthed) {
-      getProfile();
+    if (isLoaded && isAuthed && !profile) {
+      fetchProfile();
     }
-  }, [isLoaded, isAuthed]);
+  }, [isLoaded, isAuthed, profile, fetchProfile]);
 
   const doLogoutAll = async () => {
     await logout_all();
+    logoutSuccess();
     navigate("/");
   };
   useEffect(() => {
@@ -54,16 +47,16 @@ export default function Profile() {
   useEffect(() => {
     if (!profile) return;
 
-    if (profile.skin_url) {
-      skinViewer.current?.loadSkin(profile.skin_url, {
-        model: profile.is_alex ? "slim" : "default",
+    if (profile.textures.skin_url) {
+      skinViewer.current?.loadSkin(profile.textures.skin_url, {
+        model: profile.textures.is_alex ? "slim" : "default",
       });
     }
 
-    setSkinType(!!profile.is_alex);
+    setSkinType(!!profile.textures.is_alex);
 
-    if (profile.cape_url) {
-      skinViewer.current?.loadCape(profile.cape_url);
+    if (profile.textures.cape_url) {
+      skinViewer.current?.loadCape(profile.textures.cape_url);
     }
   }, [profile]);
 
@@ -111,7 +104,7 @@ export default function Profile() {
   const changeCapeElytra = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!skinViewer.current) return;
 
-    if (!profile?.cape_url) {
+    if (!profile?.textures.cape_url) {
       skinViewer.current.playerObject.backEquipment = null;
       return;
     }
@@ -222,7 +215,7 @@ export default function Profile() {
         </button>
       </form>
 
-      <div className="flex flex-col items-center bg-neutral-900 p-3 rounded-sm">
+      <div className="flex flex-col items-center bg-neutral-700 p-3 rounded-sm">
         <span className="font-bold">Сессии</span>
 
         {profile?.sessions.map((userAgent, index) => (
@@ -234,7 +227,7 @@ export default function Profile() {
         <a
           href="#"
           onClick={doLogoutAll}
-          className="mt-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
+          className="mt-2 bg-neutral-800 hover:bg-neutral-900 text-white rounded-lg p-2"
         >
           Выход
         </a>

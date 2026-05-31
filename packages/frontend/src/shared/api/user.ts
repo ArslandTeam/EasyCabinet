@@ -1,37 +1,40 @@
-import { atom, getDefaultStore } from "jotai";
-import { axios, failure, success, setBearerToken } from "../lib";
+import { axios, failure, success } from "../lib";
 import { isAxiosError } from "axios";
 
-interface Profile {
-  skin_url?: string;
-  cape_url?: string;
-  is_alex: boolean;
+export interface Profile {
+  login: string;
+  textures: Textures;
   sessions: string[];
 }
 
-export const profileAtom = atom<Profile | null>(null);
-
-export function getProfile() {
-  axios
-    .get("users", { withCredentials: true })
-    .then(({ data }) => {
-      getDefaultStore().set(profileAtom, data);
-      if (data.accessToken) {
-        setBearerToken(data.accessToken);
-      }
-    })
-    .catch(() => {});
+interface Textures {
+  is_alex: boolean;
+  skin_url?: string;
+  cape_url?: string;
 }
 
-export async function editProfile(formData: FormData) {
+export async function getProfile(): Promise<Profile | null> {
+  try {
+    const { data } = await axios.get<Profile>("users", {
+      withCredentials: true,
+    });
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function editProfile(formData: FormData): Promise<boolean> {
   try {
     await axios.put("users", formData, { withCredentials: true });
     success("Профиль успешно обновлен");
+    return true;
   } catch (error) {
     if (isAxiosError(error) && error.response?.data.message) {
       failure(error.response.data.message);
     } else {
       failure("Неизвестная ошибка");
     }
+    return false;
   }
 }

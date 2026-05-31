@@ -1,13 +1,14 @@
 import { useNavigate } from "react-router";
-import { logout, isAuthedAtom } from "../shared/api";
-import { useAtom } from "jotai";
+import { logout } from "../shared/api";
+import { useAuth } from "../entities/auth/hooks";
 
 function Header() {
-  const [isAuthed] = useAtom(isAuthedAtom);
+  const { isAuthed, logoutSuccess } = useAuth();
   const navigate = useNavigate();
 
   const doLogout = async () => {
     await logout();
+    logoutSuccess();
     navigate("/");
   };
 
