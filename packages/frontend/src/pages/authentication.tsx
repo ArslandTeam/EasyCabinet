@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { failure } from "../shared/lib";
 import { authentication } from "../shared/api";
 import { useAuth } from "../entities/auth";
+import { Link } from "react-router";
 
 function Authentication() {
   const navigate = useNavigate();
@@ -49,20 +50,20 @@ function Authentication() {
         <div className="flex flex-col gap-2 mt-4 text-center text-sm">
           <span>
             Нет аккаунта?
-            <a
-              href="/register"
+            <Link
+              to="/register"
               className="text-blue-500 ml-1 hover:text-blue-600"
             >
               Зарегистрироваться
-            </a>
+            </Link>
           </span>
           <span>
-            <a
-              href="/forgot-password"
+            <Link
+              to="/forgot-password"
               className="text-blue-500 ml-1 hover:text-blue-600"
             >
               Забыли пароль?
-            </a>
+            </Link>
           </span>
         </div>
       </div>

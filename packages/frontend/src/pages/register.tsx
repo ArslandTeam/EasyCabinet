@@ -1,6 +1,7 @@
 import { failure, success } from "../shared/lib";
 import { register, verifyEmail } from "../shared/api";
 import { useNavigate } from "react-router";
+import { Link } from "react-router";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -102,12 +103,12 @@ export default function Register() {
         </form>
         <div className="mt-4 text-center text-sm">
           Уже есть аккаунт?
-          <a
-            href="/authentication"
+          <Link
+            to="/authentication"
             className="text-blue-500 ml-1 hover:text-blue-600"
           >
             Войти
-          </a>
+          </Link>
         </div>
       </div>
     </div>

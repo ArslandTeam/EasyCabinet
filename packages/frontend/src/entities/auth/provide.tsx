@@ -13,11 +13,11 @@ export function AuthProvide({ children }: { children: ReactNode }) {
     setIsLoaded(true);
   }, []);
 
-  const loginSuccess = useCallback(() => {
+  const loginSuccess = useCallback(async () => {
     setIsAuthed(true);
   }, []);
 
-  const logoutSuccess = useCallback(() => {
+  const logoutSuccess = useCallback(async () => {
     setIsAuthed(false);
     setProfile(null);
   }, []);
