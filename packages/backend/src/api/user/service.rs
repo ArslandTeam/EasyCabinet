@@ -3,7 +3,7 @@ use crate::{
     BackendError,
     api::{
         assets::service::{AssetType, AssetsService},
-        auth::{self, service::AuthService},
+        auth::{jwt, service::AuthService},
         cache_manager::CacheManager,
         database::{entities::users, service::DatabaseService},
         storage_manager::StorageService,
@@ -62,7 +62,7 @@ impl UserService {
     pub async fn update_profile(
         db: &DatabaseConnection,
         storage: &StorageService,
-        user: auth::jwt::JwtPayload,
+        user: jwt::JwtPayload,
         profile: dto::RequestProfileDTO,
         skin: Option<&[u8]>,
         cape: Option<&[u8]>,
