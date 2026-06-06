@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router";
 import { logout } from "../shared/api";
 import { useAuth } from "../entities/auth/hooks";
+import logo from "../assets/logo.png";
+import { Link } from "react-router";
 
 function Header() {
   const { isAuthed, logoutSuccess } = useAuth();
@@ -14,23 +16,23 @@ function Header() {
 
   return (
     <header className="flex items-center justify-between py-3">
-      <a href="/" className="flex items-center gap-4">
-        <img src="/logo.png" className="w-10" alt="Logo" />
+      <Link to="/" className="flex items-center gap-4">
+        <img src={logo} className="w-10" alt="Logo" />
         <span className="hidden sm:inline text-xl font-extralight">
           Easy Cabinet
         </span>
-      </a>
+      </Link>
       {isAuthed ? (
         <nav className="flex items-center gap-4 p-4">
-          <a href="/profile">Профиль</a>
-          <a href="#" onClick={doLogout}>
+          <Link to="/profile">Профиль</Link>
+          <Link to="#" onClick={doLogout}>
             Выход
-          </a>
+          </Link>
         </nav>
       ) : (
         <nav className="flex items-center gap-4 p-4">
-          <a href="/authentication">Вход</a>
-          <a href="/register">Регистрация</a>
+          <Link to="/authentication">Вход</Link>
+          <Link to="/register">Регистрация</Link>
         </nav>
       )}
     </header>
