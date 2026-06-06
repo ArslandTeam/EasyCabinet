@@ -3,7 +3,7 @@ use crate::{
     BackendError,
     api::{
         assets::service::{AssetType, AssetsService},
-        auth,
+        auth::{self, service::AuthService},
         cache_manager::CacheManager,
         database::{entities::users, service::DatabaseService},
         storage_manager::StorageService,
@@ -123,9 +123,10 @@ impl UserService {
         uuid: &str,
         password: &str,
     ) -> Result<(), BackendError> {
+        let password_hash = AuthService::generate_hash_password(password.to_string()).await;
         users::Entity::update_many()
             .filter(users::Column::Uuid.eq(uuid))
-            .col_expr(users::Column::Password, Expr::value(password))
+            .col_expr(users::Column::Password, Expr::value(password_hash))
             .exec(db)
             .await
             .map_err(|_| BackendError::InternalError)?;

@@ -289,7 +289,7 @@ impl AuthService {
         Ok(claims)
     }
 
-    async fn generate_hash_password(password: String) -> String {
+    pub async fn generate_hash_password(password: String) -> String {
         tokio::task::spawn_blocking(move || {
             let salt = SaltString::generate(&mut OsRng);
             let argon2 = Argon2::default();
