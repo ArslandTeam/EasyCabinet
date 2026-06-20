@@ -19,21 +19,27 @@ impl CacheManager {
 
     pub async fn set(&self, key: &str, value: &str, ttl: u64) -> Result<(), BackendError> {
         let mut conn = self.redis.clone();
-        conn.set_ex(key, value, ttl)
-            .await
-            .map_err(|_| BackendError::InternalError)
+        conn.set_ex(key, value, ttl).await.map_err(|e| {
+            tracing::error!("{e}");
+            BackendError::InternalError
+        })
     }
 
     pub async fn get(&self, key: &str) -> Result<Option<String>, BackendError> {
         let mut conn = self.redis.clone();
-        conn.get(key).await.map_err(|_| BackendError::InternalError)
+        conn.get(key).await.map_err(|e| {
+            tracing::error!("{e}");
+            BackendError::InternalError
+        })
     }
 
+    #[allow(dead_code)]
     pub async fn get_del(&self, key: &str) -> Result<Option<String>, BackendError> {
         let mut conn = self.redis.clone();
-        conn.get_del(key)
-            .await
-            .map_err(|_| BackendError::InternalError)
+        conn.get_del(key).await.map_err(|e| {
+            tracing::error!("{e}");
+            BackendError::InternalError
+        })
     }
 
     pub async fn delete<T: std::marker::Send + std::marker::Sync + redis::ToRedisArgs>(
@@ -41,9 +47,11 @@ impl CacheManager {
         key: T,
     ) -> Result<(), BackendError> {
         let mut conn = self.redis.clone();
-        conn.del::<_, usize>(key)
-            .await
-            .map_err(|_| BackendError::InternalError)?;
+        conn.del::<_, usize>(key).await.map_err(|e| {
+            tracing::error!("{e}");
+            BackendError::InternalError
+        })?;
+
         Ok(())
     }
 
@@ -57,7 +65,10 @@ impl CacheManager {
             .into_stream()
             .try_collect::<Vec<String>>()
             .await
-            .map_err(|_| BackendError::InternalError)?;
+            .map_err(|e| {
+                tracing::error!("{e}");
+                BackendError::InternalError
+            })?;
 
         Ok(keys)
     }
@@ -71,10 +82,10 @@ impl CacheManager {
 
         let mut conn = self.redis.clone();
 
-        let values: Vec<String> = conn
-            .mget(keys)
-            .await
-            .map_err(|_| BackendError::InternalError)?;
+        let values: Vec<String> = conn.mget(keys).await.map_err(|e| {
+            tracing::error!("{e}");
+            BackendError::InternalError
+        })?;
 
         Ok(values)
     }

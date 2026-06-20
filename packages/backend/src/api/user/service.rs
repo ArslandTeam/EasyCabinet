@@ -139,15 +139,15 @@ impl UserService {
         uuid: &str,
         data: dto::RequestChangeEmail,
     ) -> Result<(), BackendError> {
-        let code = cache
-            .get_del(&format!("verify_code_email:{}", data.email))
-            .await?;
+        let code = format!("verify_code_email:{}", data.email);
 
-        if code != Some(data.code.to_string()) {
+        if cache.get(&code).await? != Some(data.code.to_string()) {
             return Err(BackendError::BadRequest(
                 "Invalid or expired email code".into(),
             ));
         }
+
+        cache.delete(&code).await?;
 
         users::Entity::update_many()
             .filter(users::Column::Uuid.eq(uuid))

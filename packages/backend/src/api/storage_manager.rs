@@ -17,9 +17,9 @@ impl StorageService {
             },
             "s3" => {
                 let config = aws_config::load_from_env().await;
-                let clinet = aws_sdk_s3::Client::new(&config);
+                let client = aws_sdk_s3::Client::new(&config);
                 StorageService {
-                    storage: StorageType::S3 { client: clinet },
+                    storage: StorageType::S3 { client: client },
                 }
             }
             _ => panic!("STORAGE_TEXTURES_TYPE not correct set"),

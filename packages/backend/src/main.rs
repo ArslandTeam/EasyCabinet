@@ -9,6 +9,11 @@ mod api;
 pub mod generate_config;
 use crate::generate_config::CONFIG;
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     generate_config::init();
@@ -22,7 +27,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     use migration::MigratorTrait;
-    let db = sea_orm::Database::connect(&CONFIG.database_url).await?;
+    let mut opt = sea_orm::ConnectOptions::new(&CONFIG.database_url);
+    opt.max_connections(10)
+        .min_connections(2)
+        .connect_timeout(std::time::Duration::from_secs(8))
+        .idle_timeout(std::time::Duration::from_secs(10))
+        .max_lifetime(std::time::Duration::from_secs(1800))
+        .sqlx_logging(false);
+    let db = sea_orm::Database::connect(opt).await?;
     migration::Migrator::up(&db, None).await?;
 
     let cache = CacheManager::cache_init().await;

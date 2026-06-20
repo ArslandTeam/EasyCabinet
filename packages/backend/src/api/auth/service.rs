@@ -38,15 +38,15 @@ impl AuthService {
         cache: &CacheManager,
         data: auth::dto::RequestRegisterDTO,
     ) -> Result<(), BackendError> {
-        let code = cache
-            .get_del(&format!("verify_code_email:{}", data.email))
-            .await?;
+        let code = format!("verify_code_email:{}", data.email);
 
-        if code != Some(data.code.to_string()) {
+        if cache.get(&code).await? != Some(data.code.to_string()) {
             return Err(BackendError::BadRequest(
                 "Invalid or expired email code".into(),
             ));
         }
+
+        cache.delete(&code).await?;
 
         let hash_password = Self::generate_hash_password(data.password).await;
 
