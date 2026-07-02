@@ -36,7 +36,7 @@ export default function ChangePassword() {
 
   return (
     <div className="flex items-center justify-center h-full">
-      <div className="bg-neutral-800 p-8 rounded-lg max-[350px]:w-full w-[350px]">
+      <div className="bg-neutral-800 p-8 rounded-lg max-[350px]:w-full w-87.5">
         <h1 className="text-3xl mb-4 text-center">Смена пароля</h1>
         <form className="flex flex-col gap-4" onSubmit={submit}>
           <input
