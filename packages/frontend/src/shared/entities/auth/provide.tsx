@@ -1,5 +1,5 @@
-import { useCallback, useState, type ReactNode } from "react";
-import { getProfile, refresh, type Profile } from "../../shared/api";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { getProfile, refresh, type Profile } from "../../api";
 import { AuthContext } from "./context";
 
 export function AuthProvide({ children }: { children: ReactNode }) {
@@ -28,6 +28,10 @@ export function AuthProvide({ children }: { children: ReactNode }) {
       setProfile(data);
     }
   }, []);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   return (
     <AuthContext.Provider

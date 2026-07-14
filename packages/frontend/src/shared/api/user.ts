@@ -1,5 +1,4 @@
-import { axios, failure, success } from "../lib";
-import { isAxiosError } from "axios";
+import { axios, handleError, success } from "../lib";
 
 export interface Profile {
   login: string;
@@ -30,11 +29,17 @@ export async function editProfile(formData: FormData): Promise<boolean> {
     success("Профиль успешно обновлен");
     return true;
   } catch (error) {
-    if (isAxiosError(error) && error.response?.data.message) {
-      failure(error.response.data.message);
-    } else {
-      failure("Неизвестная ошибка");
-    }
+    handleError(error);
     return false;
   }
+}
+
+export async function updatePassword(password: string) {
+  try {
+    await axios.post("users/change-password", { password });
+  } catch (error) {
+    handleError(error);
+    return false;
+  }
+  return true;
 }

@@ -1,10 +1,10 @@
 import { IdleAnimation, SkinViewer } from "skinview3d";
 import { editProfile, logout_all } from "../shared/api";
 import { useEffect, useRef, useState } from "react";
-import { useAuthMiddleware } from "../entities/auth/model/useAuthMiddleware";
+import { useAuthMiddleware } from "../shared/entities/auth/model/useAuthMiddleware";
 import { failure } from "../shared/lib";
 import { useNavigate } from "react-router";
-import { useAuth } from "../entities/auth";
+import { useAuth } from "../shared/entities/auth";
 import defaultSkin from "../assets/steve.png";
 
 export default function Profile() {

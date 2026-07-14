@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import { failure } from "../shared/lib";
 import { authentication } from "../shared/api";
-import { useAuth } from "../entities/auth";
+import { useAuth } from "../shared/entities/auth";
 import { Link } from "react-router";
 
 function Authentication() {

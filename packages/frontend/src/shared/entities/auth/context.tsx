@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { Profile } from "../../shared/api";
+import type { Profile } from "../../api";
 
 interface AuthContextType {
   isAuthed: boolean;

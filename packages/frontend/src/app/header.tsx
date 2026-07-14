@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { logout } from "../shared/api";
-import { useAuth } from "../entities/auth/hooks";
+import { useAuth } from "../shared/entities/auth/hooks";
 import logo from "../assets/logo.png";
 import { Link } from "react-router";
 

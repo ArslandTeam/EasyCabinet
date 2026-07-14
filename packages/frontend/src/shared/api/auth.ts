@@ -1,13 +1,4 @@
-import { isAxiosError } from "axios";
-import { axios, failure } from "../lib";
-
-const handleError = (e: unknown): never => {
-  if (isAxiosError(e) && e.response?.data.message) {
-    throw failure(e.response.data.message);
-  } else {
-    throw failure("Неизвестная ошибка");
-  }
-};
+import { axios, handleError } from "../lib";
 
 export async function register(
   email: string,
