@@ -73,7 +73,7 @@ impl AuroraService {
         };
 
         if user.access_token != Some(body.access_token) {
-            return Ok(Self::response(true));
+            return Ok(Self::response(false));
         }
 
         DatabaseService::update_user(
