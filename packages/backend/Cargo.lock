@@ -936,7 +936,7 @@ dependencies = [
 
 [[package]]
 name = "backend"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "argon2",
  "aws-config",
