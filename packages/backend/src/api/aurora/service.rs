@@ -20,6 +20,13 @@ use sea_orm::DatabaseConnection;
 pub struct AuroraService;
 
 impl AuroraService {
+    pub fn response<T>(result: T) -> Json<AuroraResponse<T>> {
+        Json(AuroraResponse {
+            success: true,
+            result,
+        })
+    }
+
     pub async fn auth(
         db: &DatabaseConnection,
         storage: &StorageService,
@@ -44,7 +51,7 @@ impl AuroraService {
 
         let textures = UserService::get_textures_data(storage, &user).await;
 
-        Ok(AuroraResponse::ok(AuthResponseDto {
+        Ok(Self::response(AuthResponseDto {
             username: user.login,
             user_uuid: user.uuid,
             access_token,
@@ -62,11 +69,11 @@ impl AuroraService {
             .await
             .map_err(|_| BackendError::InternalError)?
         else {
-            return Ok(AuroraResponse::ok(false));
+            return Ok(Self::response(false));
         };
 
         if user.access_token != Some(body.access_token) {
-            return Ok(AuroraResponse::ok(true));
+            return Ok(Self::response(true));
         }
 
         DatabaseService::update_user(
@@ -79,7 +86,7 @@ impl AuroraService {
         .await
         .map_err(|_| BackendError::InternalError)?;
 
-        Ok(AuroraResponse::ok(true))
+        Ok(Self::response(true))
     }
 
     pub async fn has_join(
@@ -98,7 +105,7 @@ impl AuroraService {
 
         let textures = UserService::get_textures_data(storage, &user).await;
 
-        Ok(AuroraResponse::ok(HasJoinResponseDto {
+        Ok(Self::response(HasJoinResponseDto {
             user_uuid: user.uuid,
             is_alex: textures.is_alex,
             skin_url: textures.skin_url,
@@ -118,7 +125,7 @@ impl AuroraService {
 
         let textures = UserService::get_textures_data(storage, &user).await;
 
-        Ok(AuroraResponse::ok(ProfileResponseDto {
+        Ok(Self::response(ProfileResponseDto {
             username: user.login,
             is_alex: textures.is_alex,
             skin_url: textures.skin_url,
@@ -142,15 +149,6 @@ impl AuroraService {
             })
             .collect();
 
-        Ok(AuroraResponse::ok(resposne))
-    }
-}
-
-impl<T> AuroraResponse<T> {
-    pub fn ok(result: T) -> Json<Self> {
-        Json(AuroraResponse {
-            success: true,
-            result,
-        })
+        Ok(Self::response(resposne))
     }
 }
