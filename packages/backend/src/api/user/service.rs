@@ -118,10 +118,13 @@ impl UserService {
         Ok(())
     }
 
+    // TODO вынести в auth service и перемновать?
     pub async fn change_password(
         db: &DatabaseConnection,
+        cache: &CacheManager,
         uuid: &str,
         password: &str,
+        current_session: &str,
     ) -> Result<(), BackendError> {
         let password_hash = AuthService::generate_hash_password(password.to_string()).await;
         users::Entity::update_many()
@@ -130,6 +133,14 @@ impl UserService {
             .exec(db)
             .await
             .map_err(|_| BackendError::InternalError)?;
+
+        cache
+            .delete_pattern_except(
+                &format!("session:{}:*", uuid),
+                &format!("session:{}:{}", uuid, current_session),
+            )
+            .await?;
+
         Ok(())
     }
 

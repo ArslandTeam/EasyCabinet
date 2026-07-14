@@ -86,7 +86,14 @@ impl UserControler {
         Extension(jwt): Extension<auth::jwt::JwtPayload>,
         ValidatedJson(payload): ValidatedJson<dto::RequestChangePassword>,
     ) -> Result<impl IntoResponse, BackendError> {
-        UserService::change_password(&state.db, &jwt.uuid, &payload.password).await?;
+        UserService::change_password(
+            &state.db,
+            &state.cache,
+            &jwt.uuid,
+            &payload.password,
+            &jwt.session_id,
+        )
+        .await?;
 
         Ok(StatusCode::OK)
     }

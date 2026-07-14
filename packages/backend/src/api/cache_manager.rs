@@ -101,4 +101,22 @@ impl CacheManager {
 
         Ok(())
     }
+
+    pub async fn delete_pattern_except(
+        &self,
+        pattern: &str,
+        except_key: &str,
+    ) -> Result<(), BackendError> {
+        let mut keys = self.scan_match(pattern).await?;
+
+        keys.retain(|key| key != except_key);
+
+        if keys.is_empty() {
+            return Ok(());
+        }
+
+        self.delete(keys).await?;
+
+        Ok(())
+    }
 }
