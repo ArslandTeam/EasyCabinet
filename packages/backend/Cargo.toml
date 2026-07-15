@@ -18,7 +18,7 @@ uuid = { version = "1.18", features = ["v4"] }
 time = "0.3"
 sha2 = "0.10"
 image = "0.25"
-lettre = { version = "0.11.22", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder"] }
+lettre = "0.11.22"
 minijinja = "2.12.0"
 rand = "0.9.2"
 validator = { version = "0.20", features = ["derive"] }
