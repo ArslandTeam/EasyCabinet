@@ -126,7 +126,7 @@ impl UserService {
         password: &str,
         current_session: &str,
     ) -> Result<(), BackendError> {
-        let password_hash = AuthService::generate_hash_password(password.to_string()).await;
+        let password_hash = AuthService::generate_hash_password(password.to_string()).await?;
         users::Entity::update_many()
             .filter(users::Column::Uuid.eq(uuid))
             .col_expr(users::Column::Password, Expr::value(password_hash))

@@ -23,7 +23,7 @@ impl AuthService {
         db: &DatabaseConnection,
         cache: &CacheManager,
         login: String,
-        password: String,
+        password: &str,
         user_agent: &str,
     ) -> Result<(String, String), BackendError> {
         let user = Self::verify_auth(db, &login, password).await?;
@@ -48,7 +48,7 @@ impl AuthService {
 
         cache.delete(&code).await?;
 
-        let hash_password = Self::generate_hash_password(data.password).await;
+        let hash_password = Self::generate_hash_password(data.password).await?;
 
         DatabaseService::create_user(db, data.login, hash_password, data.email).await?;
 
@@ -164,7 +164,7 @@ impl AuthService {
         DatabaseService::update_user(
             db,
             database::entities::users::Column::Password,
-            &Self::generate_hash_password(password).await,
+            &Self::generate_hash_password(password).await?,
             database::entities::users::Column::Email,
             &email,
         )
@@ -182,17 +182,19 @@ impl AuthService {
     pub async fn verify_auth(
         db: &DatabaseConnection,
         login: &str,
-        password: String,
+        password: &str,
     ) -> Result<database::entities::users::Model, BackendError> {
         let user = DatabaseService::find_user(db, database::entities::users::Column::Login, login)
             .await
             .map_err(|_| BackendError::InternalError)?
-            .ok_or(BackendError::BadRequest("User not found".into()))?;
+            .ok_or(BackendError::BadRequest("Invalid login or password".into()))?;
 
-        if Self::check_password(password, user.password.clone()).await {
+        if Self::check_password(password, &user.password).await {
             Ok(user)
         } else {
-            Err(BackendError::Unauthorized("Invalid password".into()))
+            Err(BackendError::Unauthorized(
+                "Invalid login or password".into(),
+            ))
         }
     }
 
@@ -290,7 +292,7 @@ impl AuthService {
         Ok(claims)
     }
 
-    pub async fn generate_hash_password(password: String) -> String {
+    pub async fn generate_hash_password(password: String) -> Result<String, BackendError> {
         tokio::task::spawn_blocking(move || {
             let salt = SaltString::generate(&mut OsRng);
             let argon2 = Argon2::default();
@@ -298,21 +300,29 @@ impl AuthService {
             argon2
                 .hash_password(password.as_bytes(), &salt)
                 .map(|hash| hash.to_string())
-                .unwrap()
+                .map_err(|e| {
+                    tracing::error!("{e}");
+                    BackendError::InternalError
+                })
         })
         .await
-        .unwrap()
+        .map_err(|_| BackendError::InternalError)?
     }
 
-    async fn check_password(password: String, hash: String) -> bool {
+    async fn check_password(password: &str, hash: &str) -> bool {
+        let password = password.to_string();
+        let hash = hash.to_string();
         tokio::task::spawn_blocking(move || {
+            let Ok(parsed_hash) = PasswordHash::new(&hash) else {
+                return false;
+            };
             let argon2 = Argon2::default();
 
             argon2
-                .verify_password(password.as_bytes(), &PasswordHash::new(&hash).unwrap())
+                .verify_password(password.as_bytes(), &parsed_hash)
                 .is_ok()
         })
         .await
-        .unwrap()
+        .unwrap_or(false)
     }
 }

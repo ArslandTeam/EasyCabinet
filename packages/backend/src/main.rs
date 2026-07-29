@@ -28,11 +28,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     use migration::MigratorTrait;
     let mut opt = sea_orm::ConnectOptions::new(&CONFIG.database_url);
-    opt.max_connections(10)
-        .min_connections(2)
-        .connect_timeout(std::time::Duration::from_secs(8))
-        .idle_timeout(std::time::Duration::from_secs(10))
-        .max_lifetime(std::time::Duration::from_secs(1800))
+    opt.max_connections(CONFIG.max_connection)
+        .connect_timeout(std::time::Duration::from_secs(CONFIG.connect_timeout))
         .sqlx_logging(false);
     let db = sea_orm::Database::connect(opt).await?;
     migration::Migrator::up(&db, None).await?;

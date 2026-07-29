@@ -32,7 +32,7 @@ impl AuthController {
             &state.db,
             &state.cache,
             payload.login,
-            payload.password,
+            &payload.password,
             user_agent,
         )
         .await?;

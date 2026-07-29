@@ -33,7 +33,7 @@ impl AuroraService {
         login: String,
         password: String,
     ) -> Result<Json<AuroraResponse<AuthResponseDto>>, BackendError> {
-        let user = AuthService::verify_auth(db, &login, password)
+        let user = AuthService::verify_auth(db, &login, &password)
             .await
             .map_err(|_| BackendError::BadRequestAurora("Incorecrt password or login".into()))?;
 

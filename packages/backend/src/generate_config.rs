@@ -22,6 +22,8 @@ pub struct Config {
     pub bucket_name: String,
     pub aws_public_url: String,
     pub database_url: String,
+    pub max_connection: u32,
+    pub connect_timeout: u64,
     #[serde(deserialize_with = "deserialize_mailbox")]
     pub email_from: lettre::message::Mailbox,
     pub smtp: String,
@@ -49,7 +51,7 @@ fn deserialize_jwt_key<'de, D>(deserializer: D) -> Result<jwt_simple::prelude::H
 where
     D: serde::Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
+    let s = <&str>::deserialize(deserializer)?;
     Ok(jwt_simple::prelude::HS512Key::from_bytes(s.as_bytes()))
 }
 
@@ -57,6 +59,6 @@ fn deserialize_mailbox<'de, D>(deserializer: D) -> Result<lettre::message::Mailb
 where
     D: serde::Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
+    let s = <&str>::deserialize(deserializer)?;
     s.parse().map_err(serde::de::Error::custom)
 }
