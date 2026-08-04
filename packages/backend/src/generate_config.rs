@@ -76,7 +76,7 @@ fn deserialize_jwt_key<'de, D>(deserializer: D) -> Result<jwt_simple::prelude::H
 where
     D: serde::Deserializer<'de>,
 {
-    let s = <&str>::deserialize(deserializer)?;
+    let s = String::deserialize(deserializer)?;
     Ok(jwt_simple::prelude::HS512Key::from_bytes(s.as_bytes()))
 }
 
@@ -84,6 +84,6 @@ fn deserialize_mailbox<'de, D>(deserializer: D) -> Result<lettre::message::Mailb
 where
     D: serde::Deserializer<'de>,
 {
-    let s = <&str>::deserialize(deserializer)?;
+    let s = String::deserialize(deserializer)?;
     s.parse().map_err(serde::de::Error::custom)
 }
