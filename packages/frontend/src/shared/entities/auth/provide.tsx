@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { getProfile, refresh, type Profile } from "../../api";
 import { AuthContext } from "./context";
 
-export function AuthProvide({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthed, setIsAuthed] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);

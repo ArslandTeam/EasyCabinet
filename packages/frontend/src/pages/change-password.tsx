@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 export default function ChangePassword() {
   const navigate = useNavigate();
 
-  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const submit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const searchParams = new URLSearchParams(window.location.search);

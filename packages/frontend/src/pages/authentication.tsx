@@ -8,7 +8,7 @@ function Authentication() {
   const navigate = useNavigate();
   const { loginSuccess } = useAuth();
 
-  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const submit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const formData = new FormData(e.currentTarget);

@@ -2,7 +2,7 @@ import { failure, success } from "../shared/lib";
 import { resetPassword } from "../shared/api";
 
 export default function ForgotPassword() {
-  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const submit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const formData = new FormData(e.currentTarget);

@@ -1,3 +1,3 @@
-export { AuthProvide } from "./provide";
+export { AuthProvider } from "./provide";
 export { useAuth } from "./hooks";
 export { useAuthMiddleware } from "./model/useAuthMiddleware";

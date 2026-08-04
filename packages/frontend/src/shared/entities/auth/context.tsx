@@ -7,7 +7,7 @@ interface AuthContextType {
   profile: Profile | null;
   checkAuth: () => Promise<void>;
   fetchProfile: () => Promise<void>;
-  loginSuccess: () => void;
+  loginSuccess: () => Promise<void>;
   logoutSuccess: () => void;
 }
 

@@ -7,11 +7,11 @@ import ForgotPassword from "../pages/forgot-password";
 import ChangePassword from "../pages/change-password";
 import Profile from "../pages/profile";
 import Index from "../pages/index";
-import { AuthProvide } from "../shared/entities/auth/provide";
+import { AuthProvider } from "../shared/entities/auth/provide";
 
 function App() {
   return (
-    <AuthProvide>
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
           <Route element={<Layouts />}>
@@ -25,7 +25,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
-    </AuthProvide>
+    </AuthProvider>
   );
 }
 

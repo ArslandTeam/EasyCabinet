@@ -34,12 +34,24 @@ export async function editProfile(formData: FormData): Promise<boolean> {
   }
 }
 
-export async function updatePassword(password: string) {
+export async function editPassword(password: string) {
   try {
     await axios.post("users/change-password", { password });
+    success("Пароль успешно обновлен");
+    return true;
   } catch (error) {
     handleError(error);
     return false;
   }
-  return true;
+}
+
+export async function editEmail(email: string, code: number) {
+  try {
+    await axios.post("users/change-email", { email, code });
+    success("Почта успешна обновлена");
+    return true;
+  } catch (error) {
+    handleError(error);
+    return false;
+  }
 }

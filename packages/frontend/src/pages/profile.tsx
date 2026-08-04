@@ -9,18 +9,11 @@ import defaultSkin from "../assets/steve.png";
 
 export default function Profile() {
   useAuthMiddleware();
-  const { isAuthed, isLoaded, profile, fetchProfile, logoutSuccess } =
-    useAuth();
+  const { profile, logoutSuccess } = useAuth();
   const [skinType, setSkinType] = useState<boolean>(false);
   const skinViewer = useRef<SkinViewer | null>(null);
   const skinCanvas = useRef<HTMLCanvasElement>(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isLoaded && isAuthed && !profile) {
-      fetchProfile();
-    }
-  }, [isLoaded, isAuthed, profile, fetchProfile]);
 
   const doLogoutAll = async () => {
     await logout_all();
@@ -43,6 +36,10 @@ export default function Profile() {
     skin.camera.position.z = 40;
 
     skinViewer.current = skin;
+
+    return () => {
+      skin.dispose();
+    };
   }, []);
 
   useEffect(() => {
@@ -61,7 +58,7 @@ export default function Profile() {
     }
   }, [profile]);
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     formData.set("is_alex", String(skinType));
@@ -125,7 +122,7 @@ export default function Profile() {
           <label className="relative inline-flex items-center cursor-pointer my-2">
             <input
               type="checkbox"
-              name="isAlex"
+              name="isElytra"
               className="sr-only peer"
               onChange={changeCapeElytra}
             />
