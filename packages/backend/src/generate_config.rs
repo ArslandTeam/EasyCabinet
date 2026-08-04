@@ -85,6 +85,7 @@ fn deserialize_mailbox<'de, D>(deserializer: D) -> Result<lettre::message::Mailb
 where
     D: serde::Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
-    s.parse().map_err(serde::de::Error::custom)
+    String::deserialize(deserializer)?
+        .parse()
+        .map_err(serde::de::Error::custom)
 }

@@ -58,6 +58,7 @@ fn init_router(state: AppState) -> axum::Router {
 
     let private_routes = axum::Router::new()
         .route("/auth/logout_all", post(AuthController::logout_all))
+        .route("/auth/revoke_session", post(AuthController::revoke_session))
         .route("/users", get(UserControler::get_profile))
         .route("/users", put(UserControler::update_profile))
         .route(

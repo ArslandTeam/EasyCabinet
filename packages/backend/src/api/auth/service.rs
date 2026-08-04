@@ -117,8 +117,16 @@ impl AuthService {
         Ok(())
     }
 
-    pub async fn logout_all(cache: &CacheManager, uuid: String) -> Result<(), BackendError> {
+    pub async fn logout_all(cache: &CacheManager, uuid: &str) -> Result<(), BackendError> {
         cache.delete_pattern(&format!("session:{uuid}:*")).await
+    }
+
+    pub async fn revoke_session(
+        cache: &CacheManager,
+        uuid: &str,
+        session_id: &str,
+    ) -> Result<(), BackendError> {
+        cache.delete(&format!("session:{uuid}:{session_id}")).await
     }
 
     pub async fn reset_password(
