@@ -1,4 +1,6 @@
 //! # Panics
+use std::{fs, path};
+
 use serde::Deserialize;
 #[derive(Deserialize)]
 pub struct Config {
@@ -38,12 +40,35 @@ pub static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(|| {
 });
 
 pub fn init() {
-    if !std::path::Path::new(".env").exists() {
-        std::fs::write(".env", include_str!(".env"))
+    if !path::Path::new(".env").exists() {
+        fs::write(".env", include_str!(".env"))
             .unwrap_or_else(|e| panic!("Error generate file: {e}"));
 
         println!("Check .env config");
         std::process::exit(1)
+    }
+
+    let path = path::Path::new("templates_email");
+    fs::create_dir_all(path).unwrap();
+
+    let required_files = [
+        (
+            "reset_password.html",
+            include_str!("api/email/templates/reset_password.html"),
+        ),
+        (
+            "verify_email.html",
+            include_str!("api/email/templates/verify_email.html"),
+        ),
+    ];
+
+    for (file_name, default_content) in required_files {
+        let file_path = path.join(file_name);
+
+        if !file_path.is_file() {
+            fs::write(&file_path, default_content)
+                .unwrap_or_else(|e| panic!("Error write file {file_name}: {e}"));
+        }
     }
 }
 

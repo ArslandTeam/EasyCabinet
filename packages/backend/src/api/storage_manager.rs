@@ -1,8 +1,10 @@
+//TODO: переписать S3
+
 use crate::{BackendError, generate_config::CONFIG};
 
 enum StorageType {
     Local,
-    S3 { client: aws_sdk_s3::Client },
+    // S3 { client: aws_sdk_s3::Client },
 }
 
 pub struct StorageService {
@@ -16,11 +18,12 @@ impl StorageService {
                 storage: StorageType::Local,
             },
             "s3" => {
-                let config = aws_config::load_from_env().await;
-                let client = aws_sdk_s3::Client::new(&config);
-                StorageService {
-                    storage: StorageType::S3 { client },
-                }
+                // let config = aws_config::load_from_env().await;
+                // let client = aws_sdk_s3::Client::new(&config);
+                // StorageService {
+                //     storage: StorageType::S3 { client },
+                // }
+                todo!()
             }
             _ => panic!("STORAGE_TEXTURES_TYPE not correct set"),
         }
@@ -31,10 +34,9 @@ impl StorageService {
         match &self.storage {
             StorageType::Local => {
                 format!("{}/uploads/{path}", CONFIG.backend_url)
-            }
-            StorageType::S3 { .. } => {
-                format!("{}/{}/{path}", CONFIG.aws_public_url, CONFIG.bucket_name)
-            }
+            } // StorageType::S3 { .. } => {
+              //     format!("{}/{}/{path}", CONFIG.aws_public_url, CONFIG.bucket_name)
+              // }
         }
     }
 
@@ -67,19 +69,18 @@ impl StorageService {
                     tracing::error!("Error write file: {e}");
                     BackendError::InternalError
                 })
-            }
-            StorageType::S3 { client, .. } => client
-                .put_object()
-                .bucket(&CONFIG.bucket_name)
-                .key(path)
-                .body(aws_sdk_s3::primitives::ByteStream::from(file.to_vec()))
-                .send()
-                .await
-                .map(|_| ())
-                .map_err(|e| {
-                    tracing::error!("Error S3: {e}");
-                    BackendError::InternalError
-                }),
+            } // StorageType::S3 { client, .. } => client
+              //     .put_object()
+              //     .bucket(&CONFIG.bucket_name)
+              //     .key(path)
+              //     .body(aws_sdk_s3::primitives::ByteStream::from(file.to_vec()))
+              //     .send()
+              //     .await
+              //     .map(|_| ())
+              //     .map_err(|e| {
+              //         tracing::error!("Error S3: {e}");
+              //         BackendError::InternalError
+              //     }),
         }
     }
 
@@ -92,18 +93,17 @@ impl StorageService {
                     tracing::error!("{e}");
                     BackendError::InternalError
                 })
-            }
-            StorageType::S3 { client, .. } => client
-                .delete_object()
-                .bucket(&CONFIG.bucket_name)
-                .key(path)
-                .send()
-                .await
-                .map(|_| ())
-                .map_err(|e| {
-                    tracing::error!("Error S3: {e}");
-                    BackendError::InternalError
-                }),
+            } // StorageType::S3 { client, .. } => client
+              //     .delete_object()
+              //     .bucket(&CONFIG.bucket_name)
+              //     .key(path)
+              //     .send()
+              //     .await
+              //     .map(|_| ())
+              //     .map_err(|e| {
+              //         tracing::error!("Error S3: {e}");
+              //         BackendError::InternalError
+              //     }),
         }
     }
 
