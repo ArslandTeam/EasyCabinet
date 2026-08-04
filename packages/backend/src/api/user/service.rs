@@ -28,12 +28,26 @@ impl UserService {
             .ok_or(BackendError::BadRequest("User not found".into()))?;
         let textures = Self::get_textures_data(storage, &user).await;
 
+        //TODO переписать пока что костыль
         let sessions = cache
             .get_pattern(&format!("session:{}:*", user.uuid))
             .await?
             .into_iter()
-            .map(|(id, user_agent)| dto::SessionDTO { id, user_agent })
-            .collect();
+            .map(|(full_key, user_agent)| {
+                let clean_id = full_key
+                    .rsplit_once(':')
+                    .map(|(_, session_id)| session_id.to_string())
+                    .ok_or_else(|| {
+                        tracing::error!("Invalid session key format in Redis: {full_key}");
+                        BackendError::InternalError
+                    })?;
+
+                Ok(dto::SessionDTO {
+                    id: clean_id,
+                    user_agent,
+                })
+            })
+            .collect::<Result<Vec<dto::SessionDTO>, BackendError>>()?;
 
         Ok(dto::ResponseProfileDTO {
             login: user.login,
