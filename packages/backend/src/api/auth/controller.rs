@@ -1,7 +1,7 @@
 use crate::{
     AppState, BackendError, ValidatedJson,
     api::auth::{
-        dto,
+        dto::{self, RequestRevokeSessionDTO},
         jwt::{self, JwtPayload},
         service::AuthService,
     },
@@ -115,9 +115,10 @@ impl AuthController {
     pub async fn revoke_session(
         State(state): State<AppState>,
         jar: SignedCookieJar,
-        Extension(payload): Extension<JwtPayload>,
+        Extension(payload_jwt): Extension<JwtPayload>,
+        ValidatedJson(payload): ValidatedJson<RequestRevokeSessionDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
-        AuthService::revoke_session(&state.cache, &payload.uuid, &payload.session_id).await?;
+        AuthService::revoke_session(&state.cache, &payload_jwt.uuid, &payload.session_id).await?;
 
         let jar = jar
             .remove(Cookie::from("refresh_token"))

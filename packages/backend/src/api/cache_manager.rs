@@ -73,7 +73,7 @@ impl CacheManager {
         Ok(keys)
     }
 
-    pub async fn get_pattern(&self, pattern: &str) -> Result<Vec<String>, BackendError> {
+    pub async fn get_pattern(&self, pattern: &str) -> Result<Vec<(String, String)>, BackendError> {
         let keys = self.scan_match(pattern).await?;
 
         if keys.is_empty() {
@@ -82,12 +82,18 @@ impl CacheManager {
 
         let mut conn = self.redis.clone();
 
-        let values: Vec<String> = conn.mget(keys).await.map_err(|e| {
+        let values: Vec<Option<String>> = conn.mget(&keys).await.map_err(|e| {
             tracing::error!("{e}");
             BackendError::InternalError
         })?;
 
-        Ok(values)
+        let entries = keys
+            .into_iter()
+            .zip(values)
+            .filter_map(|(key, val)| Some((key, val?)))
+            .collect();
+
+        Ok(entries)
     }
 
     pub async fn delete_pattern(&self, pattern: &str) -> Result<(), BackendError> {

@@ -42,3 +42,8 @@ pub struct RequestChangePasswordDTO {
     #[validate(length(min = 8, max = 20))]
     pub password: String,
 }
+
+#[derive(Deserialize, Validate)]
+pub struct RequestRevokeSessionDTO {
+    pub session_id: String,
+}

@@ -12,7 +12,13 @@ pub struct RequestProfileDTO {
 pub struct ResponseProfileDTO {
     pub login: String,
     pub textures: ResponseTexturesDTO,
-    pub sessions: Vec<String>,
+    pub sessions: Vec<SessionDTO>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct SessionDTO {
+    pub id: String,
+    pub user_agent: String,
 }
 
 #[derive(Deserialize, Serialize)]
