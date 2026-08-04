@@ -7,7 +7,7 @@ use crate::{
         cache_manager::CacheManager,
         database::{entities::users, service::DatabaseService},
         storage_manager::StorageService,
-        user::dto::{self, SessionDTO},
+        user::dto,
     },
 };
 use migration::Expr;
@@ -32,7 +32,7 @@ impl UserService {
             .get_pattern(&format!("session:{}:*", user.uuid))
             .await?
             .into_iter()
-            .map(|(id, user_agent)| SessionDTO { id, user_agent })
+            .map(|(id, user_agent)| dto::SessionDTO { id, user_agent })
             .collect();
 
         Ok(dto::ResponseProfileDTO {
