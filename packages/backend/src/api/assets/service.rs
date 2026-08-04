@@ -1,6 +1,5 @@
 use crate::{BackendError, api::storage_manager::StorageService};
-use image::{ImageFormat, ImageReader};
-use std::io::Cursor;
+use imagesize::ImageType;
 
 pub struct AssetsService;
 
@@ -49,23 +48,22 @@ impl AssetsService {
     }
 
     fn verify_asset(asset_type: AssetType, image: &[u8]) -> Result<(), BackendError> {
-        let reader = ImageReader::new(Cursor::new(image))
-            .with_guessed_format()
-            .map_err(|_| BackendError::BadRequest(format!("Failed to read {asset_type:?}")))?;
-
-        let format_image = reader.format().ok_or_else(|| {
-            BackendError::BadRequest(format!("Unknown {asset_type:?} format (could not guess)"))
+        let format = imagesize::image_type(image).map_err(|_| {
+            BackendError::BadRequest(format!("Unknown or corrupted {asset_type:?} format"))
         })?;
 
-        if !matches!(format_image, ImageFormat::Png | ImageFormat::Jpeg) {
+        if format != ImageType::Png {
             return Err(BackendError::BadRequest(format!(
-                "Invalid {asset_type:?} format: expected PNG or JPEG, got {format_image:?}"
+                "Invalid {asset_type:?} format: expected PNG, got {:?}",
+                format
             )));
         }
 
-        let (width, height) = reader.into_dimensions().map_err(|_| {
-            BackendError::BadRequest(format!("Invalid {asset_type:?} metadata or corrupted data"))
+        let size = imagesize::blob_size(image).map_err(|_| {
+            BackendError::BadRequest(format!("Failed to parse {asset_type:?} dimensions"))
         })?;
+
+        let (width, height) = (size.width as u32, size.height as u32);
 
         if !asset_type.valid_size(width, height) {
             return Err(BackendError::BadRequest(format!(
