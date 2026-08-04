@@ -23,6 +23,7 @@ pub struct Config {
     pub aws_secret_access_key: String,
     pub bucket_name: String,
     pub aws_public_url: String,
+    pub hd_textures: bool,
     pub database_url: String,
     pub max_connection: u32,
     pub connect_timeout: u64,

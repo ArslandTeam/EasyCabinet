@@ -1,4 +1,4 @@
-use crate::{BackendError, api::storage_manager::StorageService};
+use crate::{BackendError, api::storage_manager::StorageService, generate_config::CONFIG};
 use imagesize::ImageType;
 
 pub struct AssetsService;
@@ -17,10 +17,27 @@ impl AssetType {
         }
     }
 
-    pub const fn valid_size(self, width: u32, height: u32) -> bool {
-        match self {
-            Self::Skin => matches!((width, height), (64, 32) | (64, 64)),
-            Self::Cape => matches!((width, height), (64, 32)),
+    pub fn valid_size(self, width: u32, height: u32) -> bool {
+        if CONFIG.hd_textures {
+            match self {
+                Self::Skin => matches!(
+                    (width, height),
+                    (64, 32) | (64, 64)
+                                // HD 2:1
+                                | (128, 64) | (256, 128) | (512, 256) | (1024, 512)
+                                // HD 1:1
+                                | (128, 128) | (256, 256) | (512, 512) | (1024, 1024)
+                ),
+                Self::Cape => matches!(
+                    (width, height),
+                    (64, 32) | (128, 64) | (256, 128) | (512, 256) | (1024, 512)
+                ),
+            }
+        } else {
+            match self {
+                Self::Skin => matches!((width, height), (64, 32) | (64, 64)),
+                Self::Cape => matches!((width, height), (64, 32)),
+            }
         }
     }
 }
