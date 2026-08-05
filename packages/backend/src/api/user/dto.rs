@@ -18,6 +18,7 @@ pub struct ResponseProfileDTO {
 #[derive(Deserialize, Serialize)]
 pub struct SessionDTO {
     pub id: String,
+    pub current: bool,
     pub user_agent: String,
 }
 

@@ -110,15 +110,17 @@ impl AuthController {
 
     pub async fn revoke_session(
         State(state): State<AppState>,
-        jar: SignedCookieJar,
+        mut jar: SignedCookieJar,
         Extension(payload_jwt): Extension<jwt::JwtPayload>,
         ValidatedJson(payload): ValidatedJson<dto::RequestRevokeSessionDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::revoke_session(&state.cache, &payload_jwt.uuid, &payload.session_id).await?;
 
-        let jar = jar
-            .remove(Cookie::from("refresh_token"))
-            .remove(Cookie::build(("access_token", "")).path("/").build());
+        if payload_jwt.session_id == payload.session_id {
+            jar = jar
+                .remove(Cookie::from("refresh_token"))
+                .remove(Cookie::build(("access_token", "")).path("/").build());
+        }
 
         Ok((StatusCode::OK, jar))
     }
