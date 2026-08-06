@@ -1,3 +1,4 @@
 target
 /.env
 /uploads
+/templates_email

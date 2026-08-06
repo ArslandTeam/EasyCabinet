@@ -8,12 +8,6 @@ static SMTP_MAILER: LazyLock<SmtpTransport> = LazyLock::new(|| {
         .build()
 });
 
-static MINIJINJA: LazyLock<minijinja::Environment<'_>> = LazyLock::new(|| {
-    let mut env = minijinja::Environment::new();
-    env.set_loader(minijinja::path_loader("templates_email"));
-    env
-});
-
 async fn send_email(email: String, subject: String, html: String) -> Result<(), BackendError> {
     tokio::task::spawn_blocking(move || {
         let message = Message::builder()
@@ -44,29 +38,65 @@ async fn send_email(email: String, subject: String, html: String) -> Result<(), 
     })?
 }
 
-fn render_template(file: &str, ctx: minijinja::Value) -> String {
-    let template = MINIJINJA.get_template(file).unwrap();
-    template.render(ctx).unwrap()
+async fn render_template(
+    file: &str,
+    replacements: &[(&str, &str)],
+) -> Result<String, BackendError> {
+    let path = std::path::Path::new("templates_email").join(file);
+    let content = tokio::fs::read_to_string(&path).await.map_err(|e| {
+        tracing::error!("{e}");
+        BackendError::InternalError
+    })?;
+
+    Ok(replacements
+        .iter()
+        .fold(content, |text, (from, to)| text.replace(from, to)))
 }
 
 pub async fn send_reset_password_email(email: &str, reset_token: &str) -> Result<(), BackendError> {
     let html = render_template(
-        "reset_password.html",
-        minijinja::context! {
-            frontend_url => &CONFIG.frontend_url,
-            reset_token => reset_token
-        },
-    );
+        "verify_email.html",
+        &[
+            ("{{ frontend_url }}", &CONFIG.frontend_url),
+            ("{{ reset_token }}", reset_token),
+        ],
+    )
+    .await?;
     send_email(email.to_string(), "Сброс пароля".to_string(), html).await
 }
 
 pub async fn send_verify_email(email: &str, code: u32) -> Result<(), BackendError> {
     let html = render_template(
         "verify_email.html",
-        minijinja::context! {
-            frontend_url => &CONFIG.frontend_url,
-            code => code
-        },
-    );
+        &[
+            ("{{ frontend_url }}", &CONFIG.frontend_url),
+            ("{{ code }}", &code.to_string()),
+        ],
+    )
+    .await?;
     send_email(email.to_string(), "Подтверждение почты".to_string(), html).await
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    /// Example: `RENDER_TEMPLATE="verify_email.html" FRONTEND_URL="http://example.com" CODE="123456" cargo test render_template_test -- --nocapture`
+    async fn render_template_test() {
+        let result = render_template(
+            &std::env::var("RENDER_TEMPLATE").unwrap(),
+            &[
+                (
+                    "{{ frontend_url }}",
+                    &std::env::var("FRONTEND_URL").unwrap(),
+                ),
+                ("{{ code }}", &std::env::var("CODE").unwrap()),
+            ],
+        )
+        .await;
+
+        assert!(result.is_ok(), "{:?}", result.err());
+        println!("{}", result.unwrap());
+    }
 }
