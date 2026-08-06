@@ -84,20 +84,15 @@ impl AuthService {
 
     pub async fn refresh(
         cache: &CacheManager,
-        refresh_token: String,
-        user_agent: &str,
-    ) -> Result<(String, String), BackendError> {
+        refresh_token: &str,
+    ) -> Result<String, BackendError> {
         let payload = Self::check_token(cache, refresh_token).await?;
-        cache
-            .delete(&format!("session:{}:{}", payload.uuid, payload.session_id))
-            .await?;
-        let session_id = uuid::Uuid::new_v4().to_string();
-        Self::generate_tokens_pair(
-            cache,
+
+        Self::create_jwt_token(
             &payload.uuid,
             &payload.login,
-            &session_id,
-            user_agent,
+            &payload.session_id,
+            CONFIG.jwt_expires_in,
         )
         .await
     }
@@ -107,7 +102,7 @@ impl AuthService {
         refresh_token: Option<String>,
     ) -> Result<(), BackendError> {
         if let Some(refresh_token) = refresh_token
-            && let Ok(payload) = Self::check_token(cache, refresh_token).await
+            && let Ok(payload) = Self::check_token(cache, &refresh_token).await
         {
             cache
                 .delete(&format!("session:{}:{}", payload.uuid, payload.session_id))
@@ -150,7 +145,6 @@ impl AuthService {
         Ok(())
     }
 
-    // TODO перемновать
     pub async fn change_password(
         db: &DatabaseConnection,
         cache: &CacheManager,
@@ -197,7 +191,7 @@ impl AuthService {
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("Invalid login or password".into()))?;
 
-        if Self::check_password(password, &user.password).await {
+        if Self::check_password(password.to_string(), user.password.to_string()).await {
             Ok(user)
         } else {
             Err(BackendError::Unauthorized(
@@ -280,11 +274,11 @@ impl AuthService {
 
     async fn check_token(
         cache: &CacheManager,
-        token: String,
+        token: &str,
     ) -> Result<auth::jwt::JwtPayload, BackendError> {
         let key = &CONFIG.jwt_secret;
         let token_data = key
-            .verify_token::<auth::jwt::JwtPayload>(&token, None)
+            .verify_token::<auth::jwt::JwtPayload>(token, None)
             .map_err(|_| BackendError::Unauthorized("Invalid refresh token".into()))?;
 
         let claims = token_data.custom;
@@ -317,9 +311,7 @@ impl AuthService {
         .map_err(|_| BackendError::InternalError)?
     }
 
-    async fn check_password(password: &str, hash: &str) -> bool {
-        let password = password.to_string();
-        let hash = hash.to_string();
+    async fn check_password(password: String, hash: String) -> bool {
         tokio::task::spawn_blocking(move || {
             let Ok(parsed_hash) = PasswordHash::new(&hash) else {
                 return false;

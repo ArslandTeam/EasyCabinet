@@ -55,24 +55,14 @@ impl AuthController {
 
     pub async fn refresh(
         State(state): State<AppState>,
-        headers: HeaderMap,
         jar: SignedCookieJar,
     ) -> Result<impl IntoResponse, BackendError> {
         let old_refresh_token = jar
             .get("refresh_token")
-            .ok_or(BackendError::Unauthorized("No refresh token".into()))?
-            .value()
-            .to_owned();
+            .ok_or(BackendError::Unauthorized("No refresh token".into()))?;
 
-        let user_agent = headers
-            .get(USER_AGENT)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("Unknown");
+        let access_token = AuthService::refresh(&state.cache, old_refresh_token.value()).await?;
 
-        let (access_token, refresh_token) =
-            AuthService::refresh(&state.cache, old_refresh_token, user_agent).await?;
-
-        let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
         let jar = jwt::set_access_token(jar, access_token).await;
         Ok((StatusCode::OK, jar))
     }
