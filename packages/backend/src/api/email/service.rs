@@ -24,18 +24,14 @@ async fn send_email(email: String, subject: String, html: String) -> Result<(), 
                 BackendError::InternalError
             })?;
 
-        SMTP_MAILER.send(&message).map_err(|e| {
+        if let Err(e) = SMTP_MAILER.send(&message) {
             tracing::error!("{e}");
-            BackendError::InternalError
-        })?;
+        }
 
-        Ok(())
-    })
-    .await
-    .map_err(|e| {
-        tracing::error!("{e}");
-        BackendError::InternalError
-    })?
+        Ok::<(), BackendError>(())
+    });
+
+    Ok(())
 }
 
 async fn render_template(

@@ -259,7 +259,7 @@ impl AuthService {
         refresh_token: String,
     ) -> SignedCookieJar {
         let cookie = cookie::Cookie::build(("refresh_token", refresh_token))
-            .path("/auth")
+            .path("/")
             .http_only(true)
             .domain(&CONFIG.cookie_domain)
             .same_site(cookie::SameSite::Lax)
