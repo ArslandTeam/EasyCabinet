@@ -8,20 +8,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const checkAuth = useCallback(async () => {
-
-    if (!localStorage.getItem("refresh_token")) {
-      setIsAuthed(false);
-      setIsLoaded(true);
-      return;
-    }
-
     const success = await refresh();
     setIsAuthed(success);
-
-    if (!success) {
-      localStorage.removeItem("refresh_token");
-    }
-
     setIsLoaded(true);
   }, []);
 
