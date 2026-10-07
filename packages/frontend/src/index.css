@@ -25,3 +25,11 @@ a:hover {
 button {
   cursor: pointer;
 }
+
+form input {
+  border: 1px oklch(37.1% 0 none) solid;
+  outline: none;
+  border-radius: 8px;
+  padding: 8px;
+  color: #fff
+}

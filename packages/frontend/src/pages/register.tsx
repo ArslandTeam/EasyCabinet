@@ -2,30 +2,36 @@ import { failure, success } from "../shared/lib";
 import { register, verifyEmail } from "../shared/api";
 import { useNavigate } from "react-router";
 import { Link } from "react-router";
+import { SubmitButton } from "../shared/ui/SubmitButton";
 
 export default function Register() {
   const navigate = useNavigate();
 
+  // TODO переписать
   const verifyEmailSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
     const form = e.currentTarget.closest("form");
     if (!form) return;
-    const formData = new FormData(form);
 
-    const email = formData.get("email") as string;
+    const emailInput = form.querySelector('input[name="email"]') as HTMLInputElement;
+    if (!emailInput) return;
 
-    if (!email) {
-      return failure("Заполните поле почты");
+    if (!emailInput.reportValidity()) {
+      return;
     }
 
-    if (await verifyEmail(email)) {
-      success("Код потдверждения почты отправлен. Проверьте почту");
+    const email = emailInput.value;
+
+    try {
+      if (await verifyEmail(email)) {
+        success("Код подтверждения почты отправлен. Проверьте почту");
+      }
+    } catch {
+      // do nothing
     }
   };
 
-  const submit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+
+  const action = async (formData: FormData) => {
 
     const login = formData.get("login") as string;
     const email = formData.get("email") as string;
@@ -41,9 +47,13 @@ export default function Register() {
       return failure("Пароли не совпадают");
     }
 
-    if (await register(email, login, password, code)) {
-      success("Регистрация прошла успешно");
-      navigate("/authentication");
+    try {
+      if (await register(email, login, password, code)) {
+        success("Регистрация прошла успешно");
+        navigate("/authentication");
+      }
+    } catch {
+     // do nothing
     }
   };
 
@@ -51,31 +61,31 @@ export default function Register() {
     <div className="flex items-center justify-center h-full">
       <div className="bg-neutral-800 p-8 rounded-lg max-[350px]:w-full w-87.5">
         <h1 className="text-3xl mb-4 text-center">Регистрация</h1>
-        <form className="flex flex-col gap-4" onSubmit={submit}>
+        <form className="flex flex-col gap-4" action={action}>
           <input
             type="text"
             name="login"
             placeholder="Логин"
             maxLength={16}
-            className="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
+            required
           />
           <input
             type="email"
             name="email"
             placeholder="Почта"
-            className="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
+            required
           />
           <input
             type="password"
             name="password"
             placeholder="Пароль"
-            className="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
+            required
           />
           <input
             type="password"
             name="password_forgot"
             placeholder="Повторите пароль"
-            className="border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
+            required
           />
           <div className="grid grid-cols-2 gap-3">
             <input
@@ -84,7 +94,8 @@ export default function Register() {
               placeholder="Код"
               min="100000"
               max="999999"
-              className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 border border-neutral-700 rounded-lg p-2 bg-neutral-800 text-white"
+              required
+              className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0"
             />
             <button
               type="button"
@@ -94,12 +105,7 @@ export default function Register() {
               Получить код
             </button>
           </div>
-          <button
-            type="submit"
-            className="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
-          >
-            Зарегистрироваться
-          </button>
+          <SubmitButton pendingText="Регистрация..." style="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2">Регистрация</SubmitButton>
         </form>
         <div className="mt-4 text-center text-sm">
           Уже есть аккаунт?

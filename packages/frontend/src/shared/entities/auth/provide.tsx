@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getProfile, refresh, type Profile } from "../../api";
 import { AuthContext } from "./context";
 
@@ -7,31 +7,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  const checkAuth = useCallback(async () => {
+  const checkAuth = async () => {
     const success = await refresh();
     setIsAuthed(success);
     setIsLoaded(true);
-  }, []);
+  };
 
-  const loginSuccess = useCallback(async () => {
+  const loginSuccess = async () => {
     setIsAuthed(true);
-  }, []);
+  };
 
-  const logoutSuccess = useCallback(async () => {
+  const logoutSuccess = async () => {
     setIsAuthed(false);
     setProfile(null);
-  }, []);
+  };
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = async () => {
     const data = await getProfile();
     if (data) {
       setProfile(data);
     }
-  }, []);
+  };
 
   useEffect(() => {
     checkAuth();
-  }, [checkAuth]);
+  }, []);
 
   return (
     <AuthContext.Provider
