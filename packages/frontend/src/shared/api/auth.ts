@@ -15,6 +15,7 @@ export async function register(
     });
   } catch (error) {
     handleError(error);
+    return false
   }
   return true;
 }

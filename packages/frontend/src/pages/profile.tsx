@@ -9,11 +9,17 @@ import defaultSkin from "../assets/steve.png";
 
 export default function Profile() {
   useAuthMiddleware();
-  const { profile, logoutSuccess } = useAuth();
+  const { isAuthed, isLoaded, profile, fetchProfile, logoutSuccess } = useAuth();
   const [skinType, setSkinType] = useState<boolean>(false);
   const skinViewer = useRef<SkinViewer | null>(null);
   const skinCanvas = useRef<HTMLCanvasElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoaded && isAuthed && !profile) {
+      fetchProfile();
+    }
+  }, [isLoaded, isAuthed, profile, fetchProfile]);
 
   const doLogoutAll = async () => {
     await logout_all();

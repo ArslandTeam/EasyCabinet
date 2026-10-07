@@ -1,5 +1,6 @@
 import { axios, handleError, success } from "../lib";
 
+// TODO если не прошёл запрос (выдала к примеру ошибку not found access token), то вызываем refresh
 export interface Profile {
   login: string;
   textures: Textures;
