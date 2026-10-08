@@ -8,26 +8,37 @@ use sea_orm::{
 pub struct DatabaseService;
 
 impl DatabaseService {
-    pub async fn find_user(
+    pub async fn find<T>(
         db: &DatabaseConnection,
-        column: users::Column,
+        column: T::Column,
         value: &str,
-    ) -> Result<Option<users::Model>, DbErr> {
-        users::Entity::find()
-            .filter(Expr::col(column).eq(value))
+    ) -> Result<Option<T::Model>, BackendError>
+    where
+        T: EntityTrait,
+        T::Column: ColumnTrait,
+    {
+        T::find()
+            .filter(column.eq(value))
             .one(db)
             .await
+            .map_err(|_| BackendError::InternalError)
     }
 
-    pub async fn find_users(
+    pub async fn find_all<T, I>(
         db: &DatabaseConnection,
-        column: users::Column,
-        value: Vec<String>,
-    ) -> Result<Vec<users::Model>, DbErr> {
-        users::Entity::find()
+        column: T::Column,
+        value: I,
+    ) -> Result<Vec<T::Model>, BackendError>
+    where
+        T: EntityTrait,
+        T::Column: ColumnTrait,
+        I: IntoIterator<Item = String>,
+    {
+        T::find()
             .filter(Expr::col(column).is_in(value))
             .all(db)
             .await
+            .map_err(|_| BackendError::InternalError)
     }
 
     pub async fn create_user(

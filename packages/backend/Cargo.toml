@@ -32,6 +32,7 @@ argon2 = "0.5.3"
 envy = "0.4.2"
 mimalloc = "0.1.52"
 imagesize = { version = "0.15.0", default-features = false, features = ["jpeg", "png"] }
+nanoid = "0.5.0"
 
 [lints.clippy]
 single_match = "warn"

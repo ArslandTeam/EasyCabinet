@@ -3,7 +3,7 @@ use crate::{
     api::{
         auth,
         cache_manager::CacheManager,
-        database::{self, service::DatabaseService},
+        database::{self, entities::users, service::DatabaseService},
         email,
     },
     generate_config::CONFIG,
@@ -16,6 +16,13 @@ use axum_extra::extract::{SignedCookieJar, cookie};
 use jwt_simple::{claims::Claims, prelude::*};
 use sea_orm::DatabaseConnection;
 
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+pub struct JwtPayload {
+    pub uuid: String,
+    pub login: String,
+    pub session_id: String,
+}
+
 pub struct AuthService;
 
 impl AuthService {
@@ -27,7 +34,7 @@ impl AuthService {
         user_agent: &str,
     ) -> Result<(String, String), BackendError> {
         let user = Self::verify_auth(db, &login, password).await?;
-        let session_id = uuid::Uuid::new_v4().to_string();
+        let session_id = nanoid::nanoid!(15);
         Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id, user_agent)
             .await
             .map_err(|_| BackendError::InternalError)
@@ -60,10 +67,14 @@ impl AuthService {
         cache: &CacheManager,
         email: &str,
     ) -> Result<(), BackendError> {
-        if DatabaseService::find_user(db, database::entities::users::Column::Email, email)
-            .await
-            .map_err(|_| BackendError::InternalError)?
-            .is_some()
+        if DatabaseService::find::<users::Entity>(
+            db,
+            database::entities::users::Column::Email,
+            email,
+        )
+        .await
+        .map_err(|_| BackendError::InternalError)?
+        .is_some()
         {
             return Err(BackendError::BadRequest("User already exists".into()));
         }
@@ -129,7 +140,7 @@ impl AuthService {
         cache: &CacheManager,
         email: &str,
     ) -> Result<(), BackendError> {
-        DatabaseService::find_user(db, database::entities::users::Column::Email, email)
+        DatabaseService::find::<users::Entity>(db, database::entities::users::Column::Email, email)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
@@ -158,10 +169,14 @@ impl AuthService {
                 "Invalid or expired reset token".into(),
             ))?;
 
-        let user = DatabaseService::find_user(db, database::entities::users::Column::Email, &email)
-            .await
-            .map_err(|_| BackendError::InternalError)?
-            .ok_or(BackendError::BadRequest("User not found".into()))?;
+        let user = DatabaseService::find::<users::Entity>(
+            db,
+            database::entities::users::Column::Email,
+            &email,
+        )
+        .await
+        .map_err(|_| BackendError::InternalError)?
+        .ok_or(BackendError::BadRequest("User not found".into()))?;
 
         DatabaseService::update_user(
             db,
@@ -186,10 +201,14 @@ impl AuthService {
         login: &str,
         password: &str,
     ) -> Result<database::entities::users::Model, BackendError> {
-        let user = DatabaseService::find_user(db, database::entities::users::Column::Login, login)
-            .await
-            .map_err(|_| BackendError::InternalError)?
-            .ok_or(BackendError::BadRequest("Invalid login or password".into()))?;
+        let user = DatabaseService::find::<users::Entity>(
+            db,
+            database::entities::users::Column::Login,
+            login,
+        )
+        .await
+        .map_err(|_| BackendError::InternalError)?
+        .ok_or(BackendError::BadRequest("Invalid login or password".into()))?;
 
         if Self::check_password(password.to_string(), user.password.to_string()).await {
             Ok(user)
@@ -221,7 +240,7 @@ impl AuthService {
         session_id: &str,
         exp_range: u64,
     ) -> Result<String, BackendError> {
-        let claim = auth::jwt::JwtPayload {
+        let claim = JwtPayload {
             uuid: uuid.to_string(),
             login: login.to_string(),
             session_id: session_id.to_string(),
@@ -254,6 +273,21 @@ impl AuthService {
         Ok(refresh_token)
     }
 
+    pub async fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCookieJar {
+        let cookie = cookie::Cookie::build(("access_token", access_token))
+            .path("/")
+            .http_only(true)
+            .domain(&CONFIG.cookie_domain)
+            .same_site(cookie::SameSite::Lax)
+            .max_age(time::Duration::seconds(
+                CONFIG.jwt_expires_in.try_into().unwrap(),
+            ))
+            .secure(CONFIG.cookie_secure)
+            .build();
+
+        jar.add(cookie)
+    }
+
     pub async fn set_refresh_token_cookie(
         jar: SignedCookieJar,
         refresh_token: String,
@@ -272,13 +306,10 @@ impl AuthService {
         jar.add(cookie)
     }
 
-    async fn check_token(
-        cache: &CacheManager,
-        token: &str,
-    ) -> Result<auth::jwt::JwtPayload, BackendError> {
+    async fn check_token(cache: &CacheManager, token: &str) -> Result<JwtPayload, BackendError> {
         let key = &CONFIG.jwt_secret;
         let token_data = key
-            .verify_token::<auth::jwt::JwtPayload>(token, None)
+            .verify_token::<JwtPayload>(token, None)
             .map_err(|_| BackendError::Unauthorized("Invalid refresh token".into()))?;
 
         let claims = token_data.custom;
@@ -324,5 +355,22 @@ impl AuthService {
         })
         .await
         .unwrap_or(false)
+    }
+
+    pub(crate) async fn extract_jwt_token(
+        jar: &SignedCookieJar,
+    ) -> Result<JwtPayload, BackendError> {
+        let cookie = jar
+            .get("access_token")
+            .ok_or(BackendError::Unauthorized("Not found access token".into()))?;
+        let token_data = cookie.value();
+
+        let key = &CONFIG.jwt_secret;
+
+        let token = key
+            .verify_token::<JwtPayload>(token_data, None)
+            .map_err(|_| BackendError::Unauthorized("Not valid access token".into()))?;
+
+        Ok(token.custom)
     }
 }

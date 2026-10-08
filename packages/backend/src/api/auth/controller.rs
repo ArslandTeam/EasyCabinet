@@ -1,6 +1,9 @@
 use crate::{
     AppState, BackendError, ValidatedJson,
-    api::auth::{dto, jwt, service::AuthService},
+    api::auth::{
+        dto,
+        service::{AuthService, JwtPayload},
+    },
 };
 use axum::{
     Extension,
@@ -13,6 +16,26 @@ use axum_extra::extract::{SignedCookieJar, cookie::Cookie};
 pub struct AuthController;
 
 impl AuthController {
+    pub async fn auth_middleware(
+        axum::extract::State(state): axum::extract::State<AppState>,
+        jar: SignedCookieJar,
+        mut req: axum::extract::Request,
+        next: axum::middleware::Next,
+    ) -> Result<axum::response::Response, BackendError> {
+        let payload = AuthService::extract_jwt_token(&jar).await?;
+
+        state
+            .cache
+            .get(&format!("session:{}:{}", payload.uuid, payload.session_id))
+            .await
+            .map_err(|_| BackendError::InternalError)?
+            .ok_or(BackendError::Unauthorized("Not valid session".into()))?;
+
+        req.extensions_mut().insert(payload);
+
+        Ok(next.run(req).await)
+    }
+
     pub async fn authentication(
         State(state): State<AppState>,
         headers: HeaderMap,
@@ -33,7 +56,7 @@ impl AuthController {
         )
         .await?;
         let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
-        let jar = jwt::set_access_token(jar, access_token).await;
+        let jar = AuthService::set_access_token(jar, access_token).await;
         Ok((StatusCode::OK, jar))
     }
 
@@ -63,7 +86,7 @@ impl AuthController {
 
         let access_token = AuthService::refresh(&state.cache, old_refresh_token.value()).await?;
 
-        let jar = jwt::set_access_token(jar, access_token).await;
+        let jar = AuthService::set_access_token(jar, access_token).await;
         Ok((StatusCode::OK, jar))
     }
 
@@ -87,7 +110,7 @@ impl AuthController {
     pub async fn logout_all(
         State(state): State<AppState>,
         jar: SignedCookieJar,
-        Extension(payload): Extension<jwt::JwtPayload>,
+        Extension(payload): Extension<JwtPayload>,
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::logout_all(&state.cache, &payload.uuid).await?;
 
@@ -101,7 +124,7 @@ impl AuthController {
     pub async fn revoke_session(
         State(state): State<AppState>,
         mut jar: SignedCookieJar,
-        Extension(payload_jwt): Extension<jwt::JwtPayload>,
+        Extension(payload_jwt): Extension<JwtPayload>,
         ValidatedJson(payload): ValidatedJson<dto::RequestRevokeSessionDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::revoke_session(&state.cache, &payload_jwt.uuid, &payload.session_id).await?;
