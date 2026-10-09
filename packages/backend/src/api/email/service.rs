@@ -8,7 +8,11 @@ static SMTP_MAILER: LazyLock<SmtpTransport> = LazyLock::new(|| {
         .build()
 });
 
-async fn send_email(email: String, subject: String, html: String) -> Result<(), BackendError> {
+pub(crate) async fn send_email(
+    email: String,
+    subject: String,
+    html: String,
+) -> Result<(), BackendError> {
     tokio::task::spawn_blocking(move || {
         let message = Message::builder()
             .from(CONFIG.email_from.clone())
@@ -34,7 +38,7 @@ async fn send_email(email: String, subject: String, html: String) -> Result<(), 
     Ok(())
 }
 
-async fn render_template(
+pub(crate) async fn render_template(
     file: &str,
     replacements: &[(&str, &str)],
 ) -> Result<String, BackendError> {
@@ -71,28 +75,4 @@ pub async fn send_verify_email(email: &str, code: u32) -> Result<(), BackendErro
     )
     .await?;
     send_email(email.to_string(), "Подтверждение почты".to_string(), html).await
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    /// Example: `RENDER_TEMPLATE="verify_email.html" FRONTEND_URL="http://example.com" CODE="123456" cargo test render_template_test -- --nocapture`
-    async fn render_template_test() {
-        let result = render_template(
-            &std::env::var("RENDER_TEMPLATE").unwrap(),
-            &[
-                (
-                    "{{ frontend_url }}",
-                    &std::env::var("FRONTEND_URL").unwrap(),
-                ),
-                ("{{ code }}", &std::env::var("CODE").unwrap()),
-            ],
-        )
-        .await;
-
-        assert!(result.is_ok(), "{:?}", result.err());
-        println!("{}", result.unwrap());
-    }
 }

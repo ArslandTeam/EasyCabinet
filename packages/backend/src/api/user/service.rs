@@ -3,7 +3,7 @@ use crate::{
     BackendError,
     api::{
         assets::service::{AssetType, AssetsService},
-        auth::{jwt, service::AuthService},
+        auth::service::{AuthService, JwtPayload},
         cache_manager::CacheManager,
         database::{entities::users, service::DatabaseService},
         storage_manager::StorageService,
@@ -23,7 +23,7 @@ impl UserService {
         current_session_id: &str,
         uuid: &str,
     ) -> Result<dto::ResponseProfileDTO, BackendError> {
-        let user = DatabaseService::find_user(db, users::Column::Uuid, &uuid)
+        let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
@@ -83,7 +83,7 @@ impl UserService {
     pub async fn update_profile(
         db: &DatabaseConnection,
         storage: &StorageService,
-        user: jwt::JwtPayload,
+        user: JwtPayload,
         profile: dto::RequestProfileDTO,
         skin: Option<&[u8]>,
         cape: Option<&[u8]>,
@@ -91,7 +91,7 @@ impl UserService {
         let mut update_user =
             users::Entity::update_many().filter(users::Column::Uuid.eq(&user.uuid));
 
-        let user = DatabaseService::find_user(db, users::Column::Uuid, &user.uuid)
+        let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &user.uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;

@@ -65,9 +65,10 @@ impl AuroraService {
         db: &DatabaseConnection,
         body: aurora::dto::RequestJoinDto,
     ) -> Result<Json<AuroraResponse<bool>>, BackendError> {
-        let Some(user) = DatabaseService::find_user(db, users::Column::Uuid, &body.user_uuid)
-            .await
-            .map_err(|_| BackendError::InternalError)?
+        let Some(user) =
+            DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &body.user_uuid)
+                .await
+                .map_err(|_| BackendError::InternalError)?
         else {
             return Ok(Self::response(false));
         };
@@ -94,7 +95,7 @@ impl AuroraService {
         storage: &StorageService,
         body: aurora::dto::RequestHasJoinedDto,
     ) -> Result<Json<AuroraResponse<HasJoinResponseDto>>, BackendError> {
-        let user = DatabaseService::find_user(db, users::Column::Login, &body.username)
+        let user = DatabaseService::find::<users::Entity>(db, users::Column::Login, &body.username)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
@@ -118,7 +119,7 @@ impl AuroraService {
         storage: &StorageService,
         body: aurora::dto::RequestProfileDTO,
     ) -> Result<Json<AuroraResponse<ProfileResponseDto>>, BackendError> {
-        let user = DatabaseService::find_user(db, users::Column::Uuid, &body.user_uuid)
+        let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &body.user_uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
@@ -137,9 +138,13 @@ impl AuroraService {
         db: &DatabaseConnection,
         body: aurora::dto::RequestProfilesDto,
     ) -> Result<Json<AuroraResponse<Vec<ProfilesResponseDto>>>, BackendError> {
-        let users = DatabaseService::find_users(db, users::Column::Login, body.usernames)
-            .await
-            .map_err(|_| BackendError::BadRequestAurora("Users not found".into()))?;
+        let users = DatabaseService::find_all::<users::Entity, Vec<String>>(
+            db,
+            users::Column::Login,
+            body.usernames,
+        )
+        .await
+        .map_err(|_| BackendError::BadRequestAurora("Users not found".into()))?;
 
         let resposne: Vec<ProfilesResponseDto> = users
             .into_iter()
