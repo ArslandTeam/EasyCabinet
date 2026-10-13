@@ -24,7 +24,7 @@ impl OAuth2Controller {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("Unknown");
 
-        let redirect_uri = format!("{}/auth/discord/callback", CONFIG.backend_url);
+        let redirect_uri = format!("{}/auth/discord", CONFIG.backend_url);
 
         let form_body = format!(
             "client_id={}&client_secret={}&grant_type=authorization_code&code={}&redirect_uri={}",

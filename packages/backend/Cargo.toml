@@ -33,7 +33,7 @@ imagesize = { version = "0.15.0", default-features = false, features = ["jpeg", 
 nanoid = "0.5.0"
 s3 = { version = "0.1.34", default-features = false, features = ["async", "native-tls"] }
 hyper = { version = "1.12.0", features = ["client"] }
-hyper-rustls = "0.27.10"
+hyper-rustls = { version = "0.27.10", default-features = false, features = ["ring", "native-tokio", "http1", "http2"] }
 hyper-util = "0.1.21"
 http-body-util = "0.1.5"
 

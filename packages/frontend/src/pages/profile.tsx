@@ -222,11 +222,14 @@ export default function Profile() {
       <div className="flex flex-col items-center bg-neutral-700 p-3 rounded-sm max-w-87.5 w-full">
         <span className="font-bold">Сессии</span>
 
-        {profile?.sessions.map((userAgent, index) => (
-          <p key={index} className="mt-2">
-            {userAgent}
+        {profile?.sessions.map((session, index) => (
+          <p key={index} className="mt-2 text-sm text-neutral-300">
+            {session.user_agent}
+
+            {session.current && <span className="text-green-500 text-xs ml-2">(Текущая)</span>}
           </p>
         ))}
+
 
         <button
           type="button"

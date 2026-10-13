@@ -1,16 +1,23 @@
 import { axios, handleError, success } from "../lib";
 
 // TODO если не прошёл запрос (выдала к примеру ошибку not found access token), то вызываем refresh
+
 export interface Profile {
   login: string;
   textures: Textures;
-  sessions: string[];
+  sessions: Session[];
 }
 
 interface Textures {
   is_alex: boolean;
   skin_url?: string;
   cape_url?: string;
+}
+
+export interface Session {
+  id: string;
+  current: boolean;
+  user_agent: string;
 }
 
 export async function getProfile(): Promise<Profile | null> {

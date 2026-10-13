@@ -2,7 +2,9 @@ use super::dto::*;
 use crate::{
     BackendError,
     api::{
-        auth::service::AuthService, cache_manager::CacheManager, database::service::DatabaseService,
+        auth::service::AuthService,
+        cache_manager::CacheManager,
+        database::{entities::users, service::DatabaseService},
     },
 };
 use http_body_util::BodyExt;
@@ -45,23 +47,26 @@ impl OAuth2Service {
         email: &str,
         user_agent: &str,
     ) -> Result<(String, String), BackendError> {
-        let user = DatabaseService::create_user(db, username, None, email)
-            .await
-            .map_err(|e| {
-                tracing::error!("{:?}", e);
-                BackendError::BadRequest("Email not set in discord account".into())
-            })?;
+        let existing_user =
+            DatabaseService::find::<users::Entity>(db, users::Column::Email, email).await?;
+
+        let user = match existing_user {
+            Some(user_model) => user_model,
+            None => DatabaseService::create_user(db, username, None, email).await?,
+        };
 
         let session_id = nanoid::nanoid!(15);
 
-        Ok(AuthService::generate_tokens_pair(
-            &cache,
-            &user.uuid,
-            &username,
-            &session_id,
-            user_agent,
+        Ok(
+            AuthService::generate_tokens_pair(
+                &cache,
+                &user.uuid,
+                username,
+                &session_id,
+                user_agent,
+            )
+            .await
+            .map_err(|_| BackendError::InternalError)?,
         )
-        .await
-        .map_err(|_| BackendError::InternalError)?)
     }
 }

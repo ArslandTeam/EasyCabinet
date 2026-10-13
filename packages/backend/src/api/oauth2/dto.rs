@@ -2,7 +2,7 @@
 #[derive(serde::Deserialize)]
 pub struct CallbackParams {
     pub code: String,
-    pub state: String,
+    pub state: Option<String>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
