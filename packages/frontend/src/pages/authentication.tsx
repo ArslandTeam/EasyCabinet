@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { failure } from "../shared/lib";
-import { authentication } from "../shared/api";
+import { authentication, DISCORD_AUTH_URL } from "../shared/api";
 import { useAuth } from "../shared/entities/auth";
 import { Link } from "react-router";
 import { SubmitButton } from "../shared/ui/SubmitButton";
@@ -44,6 +44,7 @@ function Authentication() {
             required
           />
           <SubmitButton pendingText="Вход..." style="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2">Войти</SubmitButton>
+          <a href={DISCORD_AUTH_URL}>discord</a>
         </form>
         <div className="flex flex-col gap-2 mt-4 text-center text-sm">
           <span>

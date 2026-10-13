@@ -1,8 +1,8 @@
 use super::{dto::*, service::*};
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, StatusCode, header::USER_AGENT},
-    response::IntoResponse,
+    http::{HeaderMap, header::USER_AGENT},
+    response::{IntoResponse, Redirect},
 };
 use axum_extra::extract::SignedCookieJar;
 use http_body_util::BodyExt;
@@ -55,7 +55,7 @@ impl OAuth2Controller {
 
         let user_req = Request::builder()
             .method(Method::GET)
-            .uri("https://discord.com/api/v10")
+            .uri("https://discord.com/api/v10/users/@me")
             .header("Authorization", format!("Bearer {access_token}"))
             .body(axum::body::Body::empty())
             .map_err(|e| {
@@ -105,6 +105,9 @@ impl OAuth2Controller {
 
         let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
         let jar = AuthService::set_access_token(jar, access_token).await;
-        Ok((StatusCode::OK, jar))
+        Ok((
+            jar,
+            Redirect::to(&format!("{}/profile", &CONFIG.frontend_url)),
+        ))
     }
 }

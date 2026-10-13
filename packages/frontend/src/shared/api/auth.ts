@@ -1,5 +1,15 @@
 import { axios, handleError } from "../lib";
 
+
+const discordParams = new URLSearchParams({
+  client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
+  redirect_uri: `${import.meta.env.VITE_API_URL}/auth/discord`,
+  response_type: "code",
+  scope: "identify email",
+});
+
+export const DISCORD_AUTH_URL = `https://discord.com/oauth2/authorize?${discordParams.toString().replace(/\+/g, '%20')}`;
+
 export async function register(
   email: string,
   login: string,
@@ -73,7 +83,7 @@ export async function refresh() {
 
 export async function logout() {
   try {
-    await axios.post("auth/logout", null, { withCredentials: true });
+    await axios.post("auth/logout", null);
   } catch {
     // do nothing
   }
@@ -81,7 +91,7 @@ export async function logout() {
 
 export async function logout_all() {
   try {
-    await axios.post("auth/logout_all", null, { withCredentials: true });
+    await axios.post("auth/logout_all", null);
   } catch {
     // do nothing
   }

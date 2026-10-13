@@ -8,7 +8,7 @@ import { useAuth } from "../shared/entities/auth";
 import defaultSkin from "../assets/steve.png";
 
 export default function Profile() {
-  // useAuthMiddleware();
+  useAuthMiddleware();
   const { isAuthed, isLoaded, profile, fetchProfile, logoutSuccess } = useAuth();
   const [skinType, setSkinType] = useState<boolean>(false);
   const skinViewer = useRef<SkinViewer | null>(null);
