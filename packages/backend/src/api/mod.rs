@@ -4,5 +4,6 @@ pub(crate) mod auth;
 pub(crate) mod cache_manager;
 pub(crate) mod database;
 pub(crate) mod email;
+pub(crate) mod oauth2;
 pub(crate) mod storage_manager;
 pub(crate) mod user;

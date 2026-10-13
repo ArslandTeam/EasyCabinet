@@ -1,13 +1,7 @@
+use super::dto::*;
 use crate::{
     BackendError,
     api::{
-        aurora::{
-            self,
-            dto::{
-                AuroraResponse, AuthResponseDto, HasJoinResponseDto, ProfileResponseDto,
-                ProfilesResponseDto,
-            },
-        },
         auth::service::AuthService,
         database::{entities::users, service::DatabaseService},
         storage_manager::StorageService,
@@ -63,7 +57,7 @@ impl AuroraService {
 
     pub async fn join(
         db: &DatabaseConnection,
-        body: aurora::dto::RequestJoinDto,
+        body: RequestJoinDto,
     ) -> Result<Json<AuroraResponse<bool>>, BackendError> {
         let Some(user) =
             DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &body.user_uuid)
@@ -93,7 +87,7 @@ impl AuroraService {
     pub async fn has_join(
         db: &DatabaseConnection,
         storage: &StorageService,
-        body: aurora::dto::RequestHasJoinedDto,
+        body: RequestHasJoinedDto,
     ) -> Result<Json<AuroraResponse<HasJoinResponseDto>>, BackendError> {
         let user = DatabaseService::find::<users::Entity>(db, users::Column::Login, &body.username)
             .await
@@ -117,7 +111,7 @@ impl AuroraService {
     pub async fn profile(
         db: &DatabaseConnection,
         storage: &StorageService,
-        body: aurora::dto::RequestProfileDTO,
+        body: RequestProfileDTO,
     ) -> Result<Json<AuroraResponse<ProfileResponseDto>>, BackendError> {
         let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &body.user_uuid)
             .await
@@ -136,7 +130,7 @@ impl AuroraService {
 
     pub async fn profiles(
         db: &DatabaseConnection,
-        body: aurora::dto::RequestProfilesDto,
+        body: RequestProfilesDto,
     ) -> Result<Json<AuroraResponse<Vec<ProfilesResponseDto>>>, BackendError> {
         let users = DatabaseService::find_all::<users::Entity, Vec<String>>(
             db,

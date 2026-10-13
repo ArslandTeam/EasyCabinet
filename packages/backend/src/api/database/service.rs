@@ -1,8 +1,8 @@
 use crate::{BackendError, api::database::entities::users};
 use migration::Expr;
 use sea_orm::{
-    ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, ExprTrait, InsertResult,
-    QueryFilter, SqlErr,
+    ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, ExprTrait, QueryFilter,
+    SqlErr,
 };
 
 pub struct DatabaseService;
@@ -43,24 +43,27 @@ impl DatabaseService {
 
     pub async fn create_user(
         db: &DatabaseConnection,
-        login: String,
-        password: String,
-        email: String,
-    ) -> Result<InsertResult<users::ActiveModel>, BackendError> {
+        login: &str,
+        password: Option<String>,
+        email: &str,
+    ) -> Result<users::Model, BackendError> {
         let user = users::ActiveModel {
             uuid: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
-            login: ActiveValue::Set(login),
+            login: ActiveValue::Set(login.to_string()),
             password: ActiveValue::Set(password),
-            email: ActiveValue::Set(email),
+            email: ActiveValue::Set(email.to_string()),
             ..Default::default()
         };
 
-        users::Entity::insert(user).exec(db).await.map_err(|e| {
-            if let Some(SqlErr::UniqueConstraintViolation(_)) = e.sql_err() {
-                return BackendError::BadRequest("User already exists".into());
-            }
-            BackendError::InternalError
-        })
+        users::Entity::insert(user)
+            .exec_with_returning(db)
+            .await
+            .map_err(|e| {
+                if let Some(SqlErr::UniqueConstraintViolation(_)) = e.sql_err() {
+                    return BackendError::BadRequest("User already exists".into());
+                }
+                BackendError::InternalError
+            })
     }
 
     pub async fn update_user(

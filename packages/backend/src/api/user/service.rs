@@ -1,4 +1,5 @@
 // TODO переписать
+use super::dto::*;
 use crate::{
     BackendError,
     api::{
@@ -7,7 +8,6 @@ use crate::{
         cache_manager::CacheManager,
         database::{entities::users, service::DatabaseService},
         storage_manager::StorageService,
-        user::dto,
     },
 };
 use migration::Expr;
@@ -22,8 +22,8 @@ impl UserService {
         cache: &CacheManager,
         current_session_id: &str,
         uuid: &str,
-    ) -> Result<dto::ResponseProfileDTO, BackendError> {
-        let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &uuid)
+    ) -> Result<ResponseProfileDTO, BackendError> {
+        let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, uuid)
             .await
             .map_err(|_| BackendError::InternalError)?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
@@ -45,15 +45,15 @@ impl UserService {
 
                 let current = id == current_session_id;
 
-                Ok(dto::SessionDTO {
+                Ok(SessionDTO {
                     id,
                     current,
                     user_agent,
                 })
             })
-            .collect::<Result<Vec<dto::SessionDTO>, BackendError>>()?;
+            .collect::<Result<Vec<SessionDTO>, BackendError>>()?;
 
-        Ok(dto::ResponseProfileDTO {
+        Ok(ResponseProfileDTO {
             login: user.login,
             textures,
             sessions,
@@ -63,7 +63,7 @@ impl UserService {
     pub async fn get_textures_data(
         storage: &StorageService,
         user: &users::Model,
-    ) -> dto::ResponseTexturesDTO {
+    ) -> ResponseTexturesDTO {
         let skin_url = user
             .skin_hash
             .as_ref()
@@ -73,7 +73,7 @@ impl UserService {
             .as_ref()
             .map(|hash| storage.format_url("cape", hash));
 
-        dto::ResponseTexturesDTO {
+        ResponseTexturesDTO {
             is_alex: user.is_alex,
             skin_url,
             cape_url,
@@ -84,7 +84,7 @@ impl UserService {
         db: &DatabaseConnection,
         storage: &StorageService,
         user: JwtPayload,
-        profile: dto::RequestProfileDTO,
+        profile: RequestProfileDTO,
         skin: Option<&[u8]>,
         cape: Option<&[u8]>,
     ) -> Result<(), BackendError> {
@@ -169,7 +169,7 @@ impl UserService {
         db: &DatabaseConnection,
         cache: &CacheManager,
         uuid: &str,
-        data: dto::RequestChangeEmail,
+        data: RequestChangeEmail,
     ) -> Result<(), BackendError> {
         let code = format!("verify_code_email:{}", data.email);
 

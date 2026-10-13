@@ -1,9 +1,12 @@
 use crate::api::{
     aurora::controller::AuroraController, auth::controller::AuthController,
-    cache_manager::CacheManager, storage_manager::StorageService, user::controller::UserControler,
+    cache_manager::CacheManager, oauth2::controller::OAuth2Controller,
+    storage_manager::StorageService, user::controller::UserControler,
 };
 use axum::http::{Method, StatusCode, header};
 use axum_extra::extract::cookie::Key;
+use hyper_rustls::HttpsConnectorBuilder;
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use std::{ops::Deref, sync::Arc};
 mod api;
 pub mod generate_config;
@@ -37,12 +40,20 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cache = CacheManager::cache_init().await;
     let storage = StorageService::storage_init().await;
     let key = Key::from(CONFIG.cookies_secret.as_bytes());
+    let https = HttpsConnectorBuilder::new()
+        .with_native_roots()
+        .unwrap()
+        .https_only()
+        .enable_http1()
+        .build();
+    let http_client = Client::builder(TokioExecutor::new()).build::<_, axum::body::Body>(https);
 
     let state = AppState(Arc::new(InnerState {
         db,
         cache,
         storage,
         key,
+        http_client,
     }));
 
     let listener =
@@ -86,6 +97,7 @@ fn init_router(state: AppState) -> axum::Router {
             "/auth/change-password",
             post(AuthController::change_password),
         )
+        .route("/auth/discord", get(OAuth2Controller::discord))
         .route("/aurora/auth", post(AuroraController::auth))
         .route("/aurora/join", post(AuroraController::join))
         .route("/aurora/hasJoined", post(AuroraController::has_joined))
@@ -136,6 +148,10 @@ struct InnerState {
     cache: CacheManager,
     storage: StorageService,
     key: Key,
+    http_client: hyper_util::client::legacy::Client<
+        hyper_rustls::HttpsConnector<hyper_util::client::legacy::connect::HttpConnector>,
+        axum::body::Body,
+    >,
 }
 
 /// Эта реализация сообщает [`SignedCookieJar`], как получить доступ к ключу из нашего состояния

@@ -27,6 +27,8 @@ pub struct Config {
     pub database_url: String,
     pub max_connection: u32,
     pub connect_timeout: u64,
+    pub client_id_discord: String,
+    pub client_secret_discord: String,
     #[serde(deserialize_with = "deserialize_mailbox")]
     pub email_from: lettre::message::Mailbox,
     pub smtp: String,

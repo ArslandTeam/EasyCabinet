@@ -1,7 +1,7 @@
+use super::dto::*;
 use crate::{
     BackendError,
     api::{
-        auth,
         cache_manager::CacheManager,
         database::{self, entities::users, service::DatabaseService},
         email,
@@ -43,7 +43,7 @@ impl AuthService {
     pub async fn register(
         db: &DatabaseConnection,
         cache: &CacheManager,
-        data: auth::dto::RequestRegisterDTO,
+        data: RequestRegisterDTO,
     ) -> Result<(), BackendError> {
         let code = format!("verify_code_email:{}", data.email);
 
@@ -57,7 +57,7 @@ impl AuthService {
 
         let hash_password = Self::generate_hash_password(data.password).await?;
 
-        DatabaseService::create_user(db, data.login, hash_password, data.email).await?;
+        DatabaseService::create_user(db, &data.login, Some(hash_password), &data.email).await?;
 
         Ok(())
     }
@@ -210,7 +210,13 @@ impl AuthService {
         .map_err(|_| BackendError::InternalError)?
         .ok_or(BackendError::BadRequest("Invalid login or password".into()))?;
 
-        if Self::check_password(password.to_string(), user.password.to_string()).await {
+        let password_hash = user
+            .password
+            .as_ref()
+            .ok_or(BackendError::InternalError)?
+            .to_string();
+
+        if Self::check_password(password.to_string(), password_hash).await {
             Ok(user)
         } else {
             Err(BackendError::Unauthorized(
@@ -219,7 +225,7 @@ impl AuthService {
         }
     }
 
-    async fn generate_tokens_pair(
+    pub async fn generate_tokens_pair(
         cache: &CacheManager,
         uuid: &str,
         login: &str,

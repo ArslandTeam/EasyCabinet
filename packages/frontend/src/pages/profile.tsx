@@ -8,7 +8,7 @@ import { useAuth } from "../shared/entities/auth";
 import defaultSkin from "../assets/steve.png";
 
 export default function Profile() {
-  useAuthMiddleware();
+  // useAuthMiddleware();
   const { isAuthed, isLoaded, profile, fetchProfile, logoutSuccess } = useAuth();
   const [skinType, setSkinType] = useState<boolean>(false);
   const skinViewer = useRef<SkinViewer | null>(null);
@@ -214,7 +214,7 @@ export default function Profile() {
           </label>
         </div>
         <br />
-        <button className="px-4 py-2 mt-6 border bg-blue-600 border-blue-700 hover:bg-blue-500 hover:border-blue-600 transition-colors rounded-lg save-button md:mr-3">
+        <button className="px-4 py-2 mt-6 bg-blue-600 hover:bg-blue-500 transition-colors rounded-lg save-button md:mr-3">
           Сохранить изменения
         </button>
       </form>
@@ -231,7 +231,7 @@ export default function Profile() {
         <button
           type="button"
           onClick={doLogoutAll}
-          className="mt-2 bg-blue-600 border-blue-700 hover:bg-blue-500 hover:border-blue-600 transition-colors rounded-lg p-2"
+          className="mt-2 bg-blue-600 hover:bg-blue-500 transition-colors rounded-lg p-2"
         >
           Выход
         </button>

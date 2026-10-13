@@ -1,10 +1,5 @@
-use crate::{
-    AppState, BackendError, ValidatedJson,
-    api::{
-        auth::service::JwtPayload,
-        user::{dto, service::UserService},
-    },
-};
+use super::{dto::*, service::*};
+use crate::{AppState, BackendError, ValidatedJson, api::auth::service::JwtPayload};
 use axum::{
     Extension, Json,
     body::Bytes,
@@ -68,7 +63,7 @@ impl UserControler {
             }
         }
 
-        let profile = dto::RequestProfileDTO {
+        let profile = RequestProfileDTO {
             is_alex,
             del_cape,
             del_skin,
@@ -90,7 +85,7 @@ impl UserControler {
     pub async fn change_password(
         State(state): State<AppState>,
         Extension(jwt): Extension<JwtPayload>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestChangePassword>,
+        ValidatedJson(payload): ValidatedJson<RequestChangePassword>,
     ) -> Result<impl IntoResponse, BackendError> {
         UserService::change_password(
             &state.db,
@@ -107,7 +102,7 @@ impl UserControler {
     pub async fn change_email(
         State(state): State<AppState>,
         Extension(jwt): Extension<JwtPayload>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestChangeEmail>,
+        ValidatedJson(payload): ValidatedJson<RequestChangeEmail>,
     ) -> Result<impl IntoResponse, BackendError> {
         UserService::change_email(&state.db, &state.cache, &jwt.uuid, payload).await?;
 

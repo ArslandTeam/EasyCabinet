@@ -1,10 +1,5 @@
-use crate::{
-    AppState, BackendError, ValidatedJson,
-    api::auth::{
-        dto,
-        service::{AuthService, JwtPayload},
-    },
-};
+use super::{dto::*, service::*};
+use crate::{AppState, BackendError, ValidatedJson};
 use axum::{
     Extension,
     extract::State,
@@ -40,7 +35,7 @@ impl AuthController {
         State(state): State<AppState>,
         headers: HeaderMap,
         jar: SignedCookieJar,
-        ValidatedJson(payload): ValidatedJson<dto::RequestLoginDTO>,
+        ValidatedJson(payload): ValidatedJson<RequestLoginDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
         let user_agent = headers
             .get(USER_AGENT)
@@ -62,7 +57,7 @@ impl AuthController {
 
     pub async fn register(
         State(state): State<AppState>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestRegisterDTO>,
+        ValidatedJson(payload): ValidatedJson<RequestRegisterDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::register(&state.db, &state.cache, payload).await?;
         Ok(StatusCode::CREATED)
@@ -70,7 +65,7 @@ impl AuthController {
 
     pub async fn verify_email(
         State(state): State<AppState>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestVerifyEmailDTO>,
+        ValidatedJson(payload): ValidatedJson<RequestVerifyEmailDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::verify_email(&state.db, &state.cache, &payload.email).await?;
         Ok(StatusCode::OK)
@@ -125,7 +120,7 @@ impl AuthController {
         State(state): State<AppState>,
         mut jar: SignedCookieJar,
         Extension(payload_jwt): Extension<JwtPayload>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestRevokeSessionDTO>,
+        ValidatedJson(payload): ValidatedJson<RequestRevokeSessionDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::revoke_session(&state.cache, &payload_jwt.uuid, &payload.session_id).await?;
 
@@ -140,7 +135,7 @@ impl AuthController {
 
     pub async fn reset_password(
         State(state): State<AppState>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestResetPasswordDTO>,
+        ValidatedJson(payload): ValidatedJson<RequestResetPasswordDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::reset_password(&state.db, &state.cache, &payload.email).await?;
         Ok(StatusCode::OK)
@@ -148,7 +143,7 @@ impl AuthController {
 
     pub async fn change_password(
         State(state): State<AppState>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestChangePasswordDTO>,
+        ValidatedJson(payload): ValidatedJson<RequestChangePasswordDTO>,
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::change_password(
             &state.db,
