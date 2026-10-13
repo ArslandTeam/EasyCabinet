@@ -55,7 +55,7 @@ pub(crate) async fn render_template(
 
 pub async fn send_reset_password_email(email: &str, reset_token: &str) -> Result<(), BackendError> {
     let html = render_template(
-        "verify_email.html",
+        "reset_password.html",
         &[
             ("{{ frontend_url }}", &CONFIG.frontend_url),
             ("{{ reset_token }}", reset_token),
