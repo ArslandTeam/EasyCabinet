@@ -88,6 +88,18 @@ impl OAuth2Controller {
             BackendError::InternalError
         })?;
 
+        //TODO сделать првоерку автооризован ли пользователь или нет
+        // if params.state.starts_with("link_") {
+        //     let current_user_uuid = params.state.replace("link_", "");
+
+        //     OAuth2Service::link_discord(&state.db, &user_data.id, &current_user_uuid).await?;
+
+        //     return Ok((
+        //         jar,
+        //         Redirect::to(&format!("{}/profile?link=success", &CONFIG.frontend_url)),
+        //     ));
+        // }
+
         let Some(email) = user_data.email.as_deref() else {
             return Err(BackendError::BadRequest(
                 "Email not set in Discord account".into(),

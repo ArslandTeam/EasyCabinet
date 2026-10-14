@@ -82,7 +82,9 @@ impl OAuth2Service {
                     .await?;
                     user_model.discord_id = Some(discord_id.to_string());
                 } else if user_model.discord_id.as_deref() != Some(discord_id) {
-                    return Err(BackendError::BadRequest("Email use now".into()));
+                    return Err(BackendError::BadRequest(
+                        "This email is already linked to another Discord account".into(),
+                    ));
                 }
 
                 user_model
@@ -103,5 +105,32 @@ impl OAuth2Service {
         )
         .await
         .map_err(|_| BackendError::InternalError)?)
+    }
+
+    pub async fn link_discord(
+        db: &DatabaseConnection,
+        discord_id: &str,
+        uuid: &str,
+    ) -> Result<(), BackendError> {
+        let conflict =
+            DatabaseService::find::<users::Entity>(db, users::Column::DiscordId, discord_id)
+                .await?;
+
+        if conflict.is_some() {
+            return Err(BackendError::BadRequest(
+                "This Discord account is already linked to another user".into(),
+            ));
+        }
+
+        DatabaseService::update_user(
+            &db,
+            users::Column::DiscordId,
+            discord_id,
+            users::Column::Uuid,
+            uuid,
+        )
+        .await?;
+
+        Ok(())
     }
 }

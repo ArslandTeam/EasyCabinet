@@ -20,7 +20,10 @@ impl DatabaseService {
             .filter(column.eq(value))
             .one(db)
             .await
-            .map_err(|_| BackendError::InternalError)
+            .map_err(|e| {
+                tracing::error!("{e}");
+                BackendError::InternalError
+            })
     }
 
     pub async fn find_all<T, I>(
@@ -37,7 +40,10 @@ impl DatabaseService {
             .filter(Expr::col(column).is_in(value))
             .all(db)
             .await
-            .map_err(|_| BackendError::InternalError)
+            .map_err(|e| {
+                tracing::error!("{e}");
+                BackendError::InternalError
+            })
     }
 
     pub async fn create_user(

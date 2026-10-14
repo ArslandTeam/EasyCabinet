@@ -73,8 +73,7 @@ impl AuthService {
             database::entities::users::Column::Email,
             email,
         )
-        .await
-        .map_err(|_| BackendError::InternalError)?
+        .await?
         .is_some()
         {
             return Err(BackendError::BadRequest("User already exists".into()));
