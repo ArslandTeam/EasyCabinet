@@ -57,7 +57,8 @@ impl AuthService {
 
         let hash_password = Self::generate_hash_password(data.password).await?;
 
-        DatabaseService::create_user(db, &data.login, Some(hash_password), &data.email).await?;
+        DatabaseService::create_user(db, &data.login, Some(&hash_password), &data.email, None)
+            .await?;
 
         Ok(())
     }
@@ -185,8 +186,7 @@ impl AuthService {
             database::entities::users::Column::Email,
             &email,
         )
-        .await
-        .map_err(|_| BackendError::InternalError)?;
+        .await?;
 
         cache.delete(&format!("reset_token:{reset_token}")).await?;
         cache

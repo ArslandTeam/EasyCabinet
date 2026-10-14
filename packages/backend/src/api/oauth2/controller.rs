@@ -97,6 +97,7 @@ impl OAuth2Controller {
         let (access_token, refresh_token) = OAuth2Service::create_user_discord(
             &state.db,
             &state.cache,
+            &user_data.id,
             &user_data.username,
             email,
             user_agent,

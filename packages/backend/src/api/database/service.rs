@@ -1,8 +1,7 @@
 use crate::{BackendError, api::database::entities::users};
 use migration::Expr;
 use sea_orm::{
-    ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, ExprTrait, QueryFilter,
-    SqlErr,
+    ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, ExprTrait, QueryFilter, SqlErr,
 };
 
 pub struct DatabaseService;
@@ -44,13 +43,15 @@ impl DatabaseService {
     pub async fn create_user(
         db: &DatabaseConnection,
         login: &str,
-        password: Option<String>,
+        password: Option<&str>,
         email: &str,
+        discord_id: Option<&str>,
     ) -> Result<users::Model, BackendError> {
         let user = users::ActiveModel {
             uuid: ActiveValue::Set(uuid::Uuid::new_v4().to_string()),
+            discord_id: ActiveValue::Set(discord_id.map(|s| s.to_string())),
             login: ActiveValue::Set(login.to_string()),
-            password: ActiveValue::Set(password),
+            password: ActiveValue::Set(password.map(|s| s.to_string())),
             email: ActiveValue::Set(email.to_string()),
             ..Default::default()
         };
@@ -72,12 +73,16 @@ impl DatabaseService {
         value: &str,
         column_filter: users::Column,
         filter: &str,
-    ) -> Result<(), DbErr> {
+    ) -> Result<(), BackendError> {
         users::Entity::update_many()
             .col_expr(column, Expr::value(value))
             .filter(column_filter.eq(filter))
             .exec(db)
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("{e}");
+                BackendError::InternalError
+            })?;
         Ok(())
     }
 }

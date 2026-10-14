@@ -40,8 +40,7 @@ impl AuroraService {
             users::Column::Login,
             &login,
         )
-        .await
-        .map_err(|_| BackendError::InternalError)?;
+        .await?;
 
         let textures = UserService::get_textures_data(storage, &user).await;
 
@@ -78,8 +77,7 @@ impl AuroraService {
             users::Column::Uuid,
             &body.user_uuid,
         )
-        .await
-        .map_err(|_| BackendError::InternalError)?;
+        .await?;
 
         Ok(Self::response(true))
     }
