@@ -1,4 +1,3 @@
-use super::dto::*;
 use crate::{
     BackendError,
     api::{
@@ -7,39 +6,11 @@ use crate::{
         database::{entities::users, service::DatabaseService},
     },
 };
-use http_body_util::BodyExt;
-use hyper::{Response, body::Incoming};
 use sea_orm::{ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter};
 
 pub struct OAuth2Service;
 
 impl OAuth2Service {
-    pub async fn discord_token(
-        res: Response<Incoming>,
-    ) -> Result<DiscordTokenResponse, BackendError> {
-        let body_bytes = res
-            .into_body()
-            .collect()
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to read response body: {e}");
-                BackendError::InternalError
-            })?
-            .to_bytes();
-
-        if let Ok(text) = std::str::from_utf8(&body_bytes) {
-            tracing::debug!("{}", text);
-        }
-
-        let token_data: DiscordTokenResponse =
-            serde_json::from_slice(&body_bytes).map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?;
-
-        Ok(token_data)
-    }
-
     // TODO переписать
     pub async fn create_user_discord(
         db: &DatabaseConnection,
@@ -57,14 +28,12 @@ impl OAuth2Service {
             )
             .all(db)
             .await
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         if matched_users.len() > 1 {
-            tracing::error!("Found two account discord error");
-            return Err(BackendError::InternalError);
+            return Err(BackendError::InternalError(
+                "Found two account discord error".into(),
+            ));
         }
 
         let existing_user = matched_users.into_iter().next();
@@ -103,8 +72,7 @@ impl OAuth2Service {
             &session_id,
             user_agent,
         )
-        .await
-        .map_err(|_| BackendError::InternalError)?)
+        .await?)
     }
 
     pub async fn link_discord(

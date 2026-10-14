@@ -16,17 +16,13 @@ pub(crate) async fn send_email(
     tokio::task::spawn_blocking(move || {
         let message = Message::builder()
             .from(CONFIG.email_from.clone())
-            .to(email.parse().map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?)
+            .to(email
+                .parse()
+                .map_err(|e| BackendError::InternalError(Box::new(e)))?)
             .subject(subject)
             .header(ContentType::TEXT_HTML)
             .body(html)
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         if let Err(e) = SMTP_MAILER.send(&message) {
             tracing::error!("{e}");
@@ -43,10 +39,9 @@ pub(crate) async fn render_template(
     replacements: &[(&str, &str)],
 ) -> Result<String, BackendError> {
     let path = std::path::Path::new("templates_email").join(file);
-    let content = tokio::fs::read_to_string(&path).await.map_err(|e| {
-        tracing::error!("{e}");
-        BackendError::InternalError
-    })?;
+    let content = tokio::fs::read_to_string(&path)
+        .await
+        .map_err(|e| BackendError::InternalError(e.into()))?;
 
     Ok(replacements
         .iter()

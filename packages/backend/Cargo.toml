@@ -26,7 +26,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 jwt-simple = { version = "0.12.17", default-features = false, features = ["pure-rust"] }
 futures = "0.3.34"
-argon2 = "0.5.3"
+argon2 = { version = "0.5.3", features = ["std"] }
 envy = "0.4.2"
 mimalloc = "0.1.52"
 imagesize = { version = "0.15.0", default-features = false, features = ["jpeg", "png"] }

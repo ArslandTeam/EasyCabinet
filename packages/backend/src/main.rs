@@ -32,8 +32,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use migration::MigratorTrait;
     let mut opt = sea_orm::ConnectOptions::new(&CONFIG.database_url);
     opt.max_connections(CONFIG.max_connection)
-        .connect_timeout(std::time::Duration::from_secs(CONFIG.connect_timeout));
-    // .sqlx_logging(false);
+        .connect_timeout(std::time::Duration::from_secs(CONFIG.connect_timeout))
+        .sqlx_logging(CONFIG.sql_log);
     let db = sea_orm::Database::connect(opt).await?;
     migration::Migrator::up(&db, None).await?;
 
@@ -205,7 +205,7 @@ pub enum BackendError {
     BadRequest(String),
     BadRequestAurora(String),
     Unauthorized(String),
-    InternalError,
+    InternalError(Box<dyn std::error::Error + Send + Sync>),
 }
 
 // TODO возможно надо будет переписать
@@ -227,7 +227,10 @@ impl axum::response::IntoResponse for BackendError {
                 axum::Json(serde_json::json!({"message": msg})),
             )
                 .into_response(),
-            BackendError::InternalError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            BackendError::InternalError(error) => {
+                tracing::error!("{error}");
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
         }
     }
 }

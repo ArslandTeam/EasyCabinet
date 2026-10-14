@@ -35,9 +35,11 @@ impl AuthService {
     ) -> Result<(String, String), BackendError> {
         let user = Self::verify_auth(db, &login, password).await?;
         let session_id = nanoid::nanoid!(15);
-        Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id, user_agent)
-            .await
-            .map_err(|_| BackendError::InternalError)
+
+        Ok(
+            Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id, user_agent)
+                .await?,
+        )
     }
 
     pub async fn register(
@@ -141,8 +143,7 @@ impl AuthService {
         email: &str,
     ) -> Result<(), BackendError> {
         DatabaseService::find::<users::Entity>(db, database::entities::users::Column::Email, email)
-            .await
-            .map_err(|_| BackendError::InternalError)?
+            .await?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
 
         let reset_token = uuid::Uuid::new_v4().to_string();
@@ -174,8 +175,7 @@ impl AuthService {
             database::entities::users::Column::Email,
             &email,
         )
-        .await
-        .map_err(|_| BackendError::InternalError)?
+        .await?
         .ok_or(BackendError::BadRequest("User not found".into()))?;
 
         DatabaseService::update_user(
@@ -205,14 +205,13 @@ impl AuthService {
             database::entities::users::Column::Login,
             login,
         )
-        .await
-        .map_err(|_| BackendError::InternalError)?
+        .await?
         .ok_or(BackendError::BadRequest("Invalid login or password".into()))?;
 
         let password_hash = user
             .password
             .as_ref()
-            .ok_or(BackendError::InternalError)?
+            .ok_or(BackendError::InternalError("".into()))?
             .to_string();
 
         if Self::check_password(password.to_string(), password_hash).await {
@@ -280,7 +279,7 @@ impl AuthService {
 
     pub async fn set_access_token(jar: SignedCookieJar, access_token: String) -> SignedCookieJar {
         let cookie = cookie::Cookie::build(("access_token", access_token))
-            .path("/")
+            .path(&CONFIG.cookie_path)
             .http_only(true)
             .domain(&CONFIG.cookie_domain)
             .same_site(cookie::SameSite::Lax)
@@ -298,7 +297,7 @@ impl AuthService {
         refresh_token: String,
     ) -> SignedCookieJar {
         let cookie = cookie::Cookie::build(("refresh_token", refresh_token))
-            .path("/")
+            .path(&CONFIG.cookie_path)
             .http_only(true)
             .domain(&CONFIG.cookie_domain)
             .same_site(cookie::SameSite::Lax)
@@ -338,13 +337,10 @@ impl AuthService {
             argon2
                 .hash_password(password.as_bytes(), &salt)
                 .map(|hash| hash.to_string())
-                .map_err(|e| {
-                    tracing::error!("{e}");
-                    BackendError::InternalError
-                })
+                .map_err(|e| BackendError::InternalError(e.into()))
         })
         .await
-        .map_err(|_| BackendError::InternalError)?
+        .map_err(|e| BackendError::InternalError(e.into()))?
     }
 
     async fn check_password(password: String, hash: String) -> bool {

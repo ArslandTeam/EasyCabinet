@@ -60,8 +60,7 @@ impl AuroraService {
     ) -> Result<Json<AuroraResponse<bool>>, BackendError> {
         let Some(user) =
             DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &body.user_uuid)
-                .await
-                .map_err(|_| BackendError::InternalError)?
+                .await?
         else {
             return Ok(Self::response(false));
         };
@@ -88,8 +87,7 @@ impl AuroraService {
         body: RequestHasJoinedDto,
     ) -> Result<Json<AuroraResponse<HasJoinResponseDto>>, BackendError> {
         let user = DatabaseService::find::<users::Entity>(db, users::Column::Login, &body.username)
-            .await
-            .map_err(|_| BackendError::InternalError)?
+            .await?
             .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
         if user.server_id != Some(body.server_id) {
@@ -112,8 +110,7 @@ impl AuroraService {
         body: RequestProfileDTO,
     ) -> Result<Json<AuroraResponse<ProfileResponseDto>>, BackendError> {
         let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &body.user_uuid)
-            .await
-            .map_err(|_| BackendError::InternalError)?
+            .await?
             .ok_or(BackendError::BadRequestAurora("User not found".into()))?;
 
         let textures = UserService::get_textures_data(storage, &user).await;
@@ -135,8 +132,7 @@ impl AuroraService {
             users::Column::Login,
             body.usernames,
         )
-        .await
-        .map_err(|_| BackendError::BadRequestAurora("Users not found".into()))?;
+        .await?;
 
         let resposne: Vec<ProfilesResponseDto> = users
             .into_iter()

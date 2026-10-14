@@ -20,10 +20,7 @@ impl DatabaseService {
             .filter(column.eq(value))
             .one(db)
             .await
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })
+            .map_err(|e| BackendError::InternalError(e.into()))
     }
 
     pub async fn find_all<T, I>(
@@ -40,10 +37,7 @@ impl DatabaseService {
             .filter(Expr::col(column).is_in(value))
             .all(db)
             .await
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })
+            .map_err(|e| BackendError::InternalError(e.into()))
     }
 
     pub async fn create_user(
@@ -69,7 +63,7 @@ impl DatabaseService {
                 if let Some(SqlErr::UniqueConstraintViolation(_)) = e.sql_err() {
                     return BackendError::BadRequest("User already exists".into());
                 }
-                BackendError::InternalError
+                BackendError::InternalError(e.into())
             })
     }
 
@@ -85,10 +79,7 @@ impl DatabaseService {
             .filter(column_filter.eq(filter))
             .exec(db)
             .await
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
         Ok(())
     }
 }

@@ -24,9 +24,9 @@ impl UserService {
         uuid: &str,
     ) -> Result<ResponseProfileDTO, BackendError> {
         let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, uuid)
-            .await
-            .map_err(|_| BackendError::InternalError)?
+            .await?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
+
         let textures = Self::get_textures_data(storage, &user).await;
 
         //TODO лучше вынести получений сессий в отдельный запрос
@@ -38,10 +38,7 @@ impl UserService {
                 let id = key
                     .rsplit_once(':')
                     .map(|(_, session_id)| session_id.to_string())
-                    .ok_or_else(|| {
-                        tracing::error!("Invalid session key format in Redis: {key}");
-                        BackendError::InternalError
-                    })?;
+                    .ok_or_else(|| BackendError::InternalError("".into()))?;
 
                 let current = id == current_session_id;
 
@@ -92,8 +89,7 @@ impl UserService {
             users::Entity::update_many().filter(users::Column::Uuid.eq(&user.uuid));
 
         let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &user.uuid)
-            .await
-            .map_err(|_| BackendError::InternalError)?
+            .await?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
 
         match (skin, profile.del_skin) {
@@ -135,7 +131,7 @@ impl UserService {
         update_user
             .exec(db)
             .await
-            .map_err(|_| BackendError::InternalError)?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
         Ok(())
     }
 
@@ -153,7 +149,7 @@ impl UserService {
             .col_expr(users::Column::Password, Expr::value(password_hash))
             .exec(db)
             .await
-            .map_err(|_| BackendError::InternalError)?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         cache
             .delete_pattern_except(
@@ -186,7 +182,7 @@ impl UserService {
             .col_expr(users::Column::Email, Expr::value(data.email))
             .exec(db)
             .await
-            .map_err(|_| BackendError::InternalError)?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         Ok(())
     }

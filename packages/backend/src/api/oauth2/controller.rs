@@ -24,11 +24,12 @@ impl OAuth2Controller {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("Unknown");
 
-        let redirect_uri = format!("{}/auth/discord", CONFIG.backend_url);
-
         let form_body = format!(
             "client_id={}&client_secret={}&grant_type=authorization_code&code={}&redirect_uri={}",
-            CONFIG.client_id_discord, CONFIG.client_secret_discord, params.code, redirect_uri
+            CONFIG.client_id_discord,
+            CONFIG.client_secret_discord,
+            params.code,
+            format!("{}/auth/discord", CONFIG.backend_url)
         );
 
         let token_req = Request::builder()
@@ -36,57 +37,59 @@ impl OAuth2Controller {
             .uri("https://discord.com/api/oauth2/token")
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(axum::body::Body::from(form_body))
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
-        let res = state.http_client.request(token_req).await.map_err(|e| {
-            tracing::error!("{e}");
-            BackendError::InternalError
-        })?;
+        let res = state
+            .http_client
+            .request(token_req)
+            .await
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         if !res.status().is_success() {
-            tracing::error!("Discord returned error status: {}", res.status());
-            return Err(BackendError::InternalError);
-        }
-
-        let access_token = OAuth2Service::discord_token(res).await?.access_token;
-
-        let user_req = Request::builder()
-            .method(Method::GET)
-            .uri("https://discord.com/api/v10/users/@me")
-            .header("Authorization", format!("Bearer {access_token}"))
-            .body(axum::body::Body::empty())
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?;
-
-        let res = state.http_client.request(user_req).await.map_err(|e| {
-            tracing::error!("{e}");
-            BackendError::InternalError
-        })?;
-
-        if !res.status().is_success() {
-            tracing::error!("{}", res.status());
-            return Err(BackendError::InternalError);
+            return Err(BackendError::InternalError(
+                format!("Discord returned error status: {}", res.status()).into(),
+            ));
         }
 
         let body_bytes = res
             .into_body()
             .collect()
             .await
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?
+            .map_err(|e| BackendError::InternalError(e.into()))?
             .to_bytes();
 
-        let user_data: DiscordUserResponse = serde_json::from_slice(&body_bytes).map_err(|e| {
-            tracing::error!("{e}");
-            BackendError::InternalError
-        })?;
+        let token_data: DiscordTokenResponse = serde_json::from_slice(&body_bytes)
+            .map_err(|e| BackendError::InternalError(e.into()))?;
+
+        let user_req = Request::builder()
+            .method(Method::GET)
+            .uri("https://discord.com/api/v10/users/@me")
+            .header(
+                "Authorization",
+                format!("Bearer {}", token_data.access_token),
+            )
+            .body(axum::body::Body::empty())
+            .map_err(|e| BackendError::InternalError(e.into()))?;
+
+        let res = state
+            .http_client
+            .request(user_req)
+            .await
+            .map_err(|e| BackendError::InternalError(e.into()))?;
+
+        if !res.status().is_success() {
+            return Err(BackendError::InternalError("".into()));
+        }
+
+        let body_bytes = res
+            .into_body()
+            .collect()
+            .await
+            .map_err(|e| BackendError::InternalError(e.into()))?
+            .to_bytes();
+
+        let user_data: DiscordUserResponse = serde_json::from_slice(&body_bytes)
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         //TODO сделать првоерку автооризован ли пользователь или нет
         // if params.state.starts_with("link_") {
@@ -118,6 +121,7 @@ impl OAuth2Controller {
 
         let jar = AuthService::set_refresh_token_cookie(jar, refresh_token).await;
         let jar = AuthService::set_access_token(jar, access_token).await;
+
         Ok((
             jar,
             Redirect::to(&format!("{}/profile", &CONFIG.frontend_url)),

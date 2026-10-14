@@ -1,5 +1,5 @@
 use super::{dto::*, service::*};
-use crate::{AppState, BackendError, ValidatedJson};
+use crate::{AppState, BackendError, ValidatedJson, generate_config::CONFIG};
 use axum::{
     Extension,
     extract::State,
@@ -22,8 +22,7 @@ impl AuthController {
         state
             .cache
             .get(&format!("session:{}:{}", payload.uuid, payload.session_id))
-            .await
-            .map_err(|_| BackendError::InternalError)?
+            .await?
             .ok_or(BackendError::Unauthorized("Not valid session".into()))?;
 
         req.extensions_mut().insert(payload);
@@ -109,9 +108,11 @@ impl AuthController {
     ) -> Result<impl IntoResponse, BackendError> {
         AuthService::logout_all(&state.cache, &payload.uuid).await?;
 
-        let jar = jar
-            .remove(Cookie::from("refresh_token"))
-            .remove(Cookie::build(("access_token", "")).path("/").build());
+        let jar = jar.remove(Cookie::from("refresh_token")).remove(
+            Cookie::build(("access_token", ""))
+                .path(&CONFIG.cookie_path)
+                .build(),
+        );
 
         Ok((StatusCode::OK, jar))
     }
@@ -125,9 +126,11 @@ impl AuthController {
         AuthService::revoke_session(&state.cache, &payload_jwt.uuid, &payload.session_id).await?;
 
         if payload_jwt.session_id == payload.session_id {
-            jar = jar
-                .remove(Cookie::from("refresh_token"))
-                .remove(Cookie::build(("access_token", "")).path("/").build());
+            jar = jar.remove(Cookie::from("refresh_token")).remove(
+                Cookie::build(("access_token", ""))
+                    .path(&CONFIG.cookie_path)
+                    .build(),
+            );
         }
 
         Ok((StatusCode::OK, jar))

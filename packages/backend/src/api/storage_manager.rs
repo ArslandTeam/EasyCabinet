@@ -65,16 +65,14 @@ impl StorageService {
                 let file_path = std::path::PathBuf::from("uploads").join(path);
 
                 if let Some(parent) = file_path.parent() {
-                    tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                        tracing::error!("Error create dir: {e}");
-                        BackendError::InternalError
-                    })?;
+                    tokio::fs::create_dir_all(parent)
+                        .await
+                        .map_err(|e| BackendError::InternalError(e.into()))?;
                 }
 
-                tokio::fs::write(file_path, file).await.map_err(|e| {
-                    tracing::error!("Error write file: {e}");
-                    BackendError::InternalError
-                })
+                tokio::fs::write(file_path, file)
+                    .await
+                    .map_err(|e| BackendError::InternalError(e.into()))
             }
             StorageType::S3 { client } => {
                 client
@@ -83,10 +81,7 @@ impl StorageService {
                     .body_bytes(file.to_vec())
                     .send()
                     .await
-                    .map_err(|e| {
-                        tracing::error!("{e}");
-                        BackendError::InternalError
-                    })?;
+                    .map_err(|e| BackendError::InternalError(e.into()))?;
                 Ok(())
             }
         }
@@ -97,10 +92,9 @@ impl StorageService {
             StorageType::Local => {
                 let file_path = std::path::PathBuf::from("uploads").join(path);
 
-                tokio::fs::remove_file(file_path).await.map_err(|e| {
-                    tracing::error!("{e}");
-                    BackendError::InternalError
-                })
+                tokio::fs::remove_file(file_path)
+                    .await
+                    .map_err(|e| BackendError::InternalError(e.into()))
             }
             StorageType::S3 { client, .. } => {
                 client
@@ -108,10 +102,7 @@ impl StorageService {
                     .delete(&CONFIG.bucket_name, path)
                     .send()
                     .await
-                    .map_err(|e| {
-                        tracing::error!("{e}");
-                        BackendError::InternalError
-                    })?;
+                    .map_err(|e| BackendError::InternalError(e.into()))?;
                 Ok(())
             }
         }
