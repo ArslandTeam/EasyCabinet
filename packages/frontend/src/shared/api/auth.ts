@@ -1,14 +1,17 @@
 import { axios, handleError } from "../lib";
 
 
-const discordParams = new URLSearchParams({
-  client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
-  redirect_uri: `${import.meta.env.VITE_API_URL}/auth/discord`,
-  response_type: "code",
-  scope: "identify email",
-});
+export const discordAuth = () => {
+  const discordParams = new URLSearchParams({
+    client_id: import.meta.env.VITE_DISCORD_CLIENT_ID,
+    redirect_uri: `${import.meta.env.VITE_API_URL}/auth/discord`,
+    response_type: "code",
+    scope: "identify email",
+    state: "auth",
+  })
+  return `https://discord.com/oauth2/authorize?${discordParams.toString().replace(/\+/g, '%20')}`
+};
 
-export const DISCORD_AUTH_URL = `https://discord.com/oauth2/authorize?${discordParams.toString().replace(/\+/g, '%20')}`;
 
 export async function register(
   email: string,

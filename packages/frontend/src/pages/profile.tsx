@@ -1,5 +1,5 @@
 import { IdleAnimation, SkinViewer } from "skinview3d";
-import { editProfile, logout_all } from "../shared/api";
+import { discordLink, editProfile, logout_all } from "../shared/api";
 import { useEffect, useRef, useState } from "react";
 import { useAuthMiddleware } from "../shared/entities/auth/model/useAuthMiddleware";
 import { failure } from "../shared/lib";
@@ -33,6 +33,7 @@ export default function Profile() {
       width: 300,
       height: 400,
       skin: defaultSkin,
+      model: "default",
     });
 
     skin.animation = new IdleAnimation();
@@ -49,18 +50,24 @@ export default function Profile() {
   }, []);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !skinViewer.current) return;
 
     if (profile.textures.skin_url) {
-      skinViewer.current?.loadSkin(profile.textures.skin_url, {
+      skinViewer.current.loadSkin(profile.textures.skin_url, {
         model: profile.textures.is_alex ? "slim" : "default",
       });
+      setSkinType(!!profile.textures.is_alex);
+    } else {
+      skinViewer.current.loadSkin(defaultSkin, {
+        model: "default",
+      });
+      setSkinType(false);
     }
 
-    setSkinType(!!profile.textures.is_alex);
-
     if (profile.textures.cape_url) {
-      skinViewer.current?.loadCape(profile.textures.cape_url);
+      skinViewer.current.loadCape(profile.textures.cape_url);
+    } else {
+      skinViewer.current.playerObject.backEquipment = null;
     }
   }, [profile]);
 
@@ -229,6 +236,10 @@ export default function Profile() {
             {session.current && <span className="text-green-500 text-xs ml-2">(Текущая)</span>}
           </p>
         ))}
+
+        <div>
+          <a onClick={discordLink}>Discord</a>
+        </div>
 
 
         <button

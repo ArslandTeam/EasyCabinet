@@ -1,30 +1,34 @@
 use super::{dto::*, service::*};
 use axum::{
+    Extension,
     body::Body,
     extract::{Query, State},
     http::{HeaderMap, header::USER_AGENT},
     response::{IntoResponse, Redirect},
 };
 use axum_extra::extract::SignedCookieJar;
-use http_body_util::BodyExt;
 use hyper::{Method, Request};
 
-use crate::{AppState, BackendError, api::auth::service::AuthService, generate_config::CONFIG};
+use crate::{
+    AppState, BackendError,
+    api::auth::service::{AuthService, JwtPayload},
+    generate_config::CONFIG,
+};
 
 pub struct OAuth2Controller;
 
 impl OAuth2Controller {
-    pub async fn get_discord_link(
+    pub async fn discord_link(
         State(state): State<AppState>,
-        jar: SignedCookieJar,
+        Extension(payload): Extension<JwtPayload>,
     ) -> Result<impl IntoResponse, BackendError> {
-        let link_token = OAuth2Service::get_link_discord(&state.cache, &jar).await?;
-        let state_param = format!("link:{}", link_token);
-        let redirect_uri = format!("{}/auth/discord", CONFIG.backend_url);
+        let csrf_token = OAuth2Service::get_link_discord(&state.cache, &payload.uuid).await?;
 
         let discord_url = format!(
             "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify%20email&state={}",
-            CONFIG.client_id_discord, &redirect_uri, &state_param
+            CONFIG.client_id_discord,
+            format!("{}/auth/discord", CONFIG.backend_url),
+            format!("link:{}", csrf_token)
         );
 
         Ok(Redirect::to(&discord_url))
@@ -36,6 +40,11 @@ impl OAuth2Controller {
         Query(params): Query<CallbackParams>,
         jar: SignedCookieJar,
     ) -> Result<impl IntoResponse, BackendError> {
+        let (action, csrf_token) = params
+            .state
+            .split_once(':')
+            .ok_or_else(|| BackendError::BadRequest("Invalid state format".into()))?;
+
         let user_agent = headers
             .get(USER_AGENT)
             .and_then(|v| v.to_str().ok())
@@ -102,16 +111,13 @@ impl OAuth2Controller {
         let user_data: DiscordUserResponse = serde_json::from_slice(&body_bytes)
             .map_err(|e| BackendError::InternalError(e.into()))?;
 
-        // if params.state.starts_with("link") {
-        //     let uuid = AuthService::extract_jwt_token(&jar).await?.uuid;
-
-        //     OAuth2Service::link_discord(&state.db, &user_data.id, &uuid).await?;
-
-        //     return Ok((
-        //         jar,
-        //         Redirect::to(&format!("{}/profile?link=success", &CONFIG.frontend_url)),
-        //     ));
-        // }
+        if action == "link" {
+            OAuth2Service::link_discord(&state.db, &state.cache, &user_data.id, csrf_token).await?;
+            return Ok((
+                jar,
+                Redirect::to(&format!("{}/profile?link=success", CONFIG.frontend_url)),
+            ));
+        }
 
         let Some(email) = user_data.email.as_deref() else {
             return Err(BackendError::BadRequest(
@@ -134,7 +140,7 @@ impl OAuth2Controller {
 
         Ok((
             jar,
-            Redirect::to(&format!("{}/profile", &CONFIG.frontend_url)),
+            Redirect::to(&format!("{}/profile", CONFIG.frontend_url)),
         ))
     }
 }

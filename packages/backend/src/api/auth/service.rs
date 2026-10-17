@@ -36,10 +36,7 @@ impl AuthService {
         let user = Self::verify_auth(db, &login, password).await?;
         let session_id = nanoid::nanoid!(15);
 
-        Ok(
-            Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id, user_agent)
-                .await?,
-        )
+        Self::generate_tokens_pair(cache, &user.uuid, &user.login, &session_id, user_agent).await
     }
 
     pub async fn register(

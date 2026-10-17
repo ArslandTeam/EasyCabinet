@@ -63,3 +63,13 @@ export async function editEmail(email: string, code: number) {
     return false;
   }
 }
+
+export async function discordLink() {
+  try {
+    await axios.get("auth/discord/link");
+    return true;
+  } catch (error) {
+    handleError(error);
+    return false;
+  }
+}
