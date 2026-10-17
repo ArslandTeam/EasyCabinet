@@ -208,7 +208,7 @@ impl AuthService {
         let password_hash = user
             .password
             .as_ref()
-            .ok_or(BackendError::InternalError("".into()))?
+            .ok_or_else(|| BackendError::BadRequest("Invalid login or password".into()))?
             .to_string();
 
         if Self::check_password(password.to_string(), password_hash).await {

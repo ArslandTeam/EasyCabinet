@@ -34,6 +34,20 @@ impl OAuth2Controller {
         Ok(Redirect::to(&discord_url))
     }
 
+    pub async fn discord_auth(
+        State(state): State<AppState>,
+    ) -> Result<impl IntoResponse, BackendError> {
+        let csrf_token = OAuth2Service::get_auth_discord(&state.cache).await?;
+
+        let discord_url = format!(
+            "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify%20email&state={}",
+            CONFIG.client_id_discord,
+            format!("{}/auth/discord", CONFIG.backend_url),
+            format!("auth:{}", csrf_token)
+        );
+        Ok(Redirect::to(&discord_url))
+    }
+
     pub async fn discord(
         headers: HeaderMap,
         State(state): State<AppState>,
@@ -44,6 +58,17 @@ impl OAuth2Controller {
             .state
             .split_once(':')
             .ok_or_else(|| BackendError::BadRequest("Invalid state format".into()))?;
+
+        // TODO переписать
+        if action == "auth" {
+            let redis_value = state.cache.get(csrf_token).await?.ok_or_else(|| {
+                BackendError::BadRequest("OAuth session expired or invalid token".into())
+            })?;
+
+            if redis_value != "anonymous" {
+                return Err(BackendError::BadRequest("Invalid token payload".into()));
+            }
+        }
 
         let user_agent = headers
             .get(USER_AGENT)

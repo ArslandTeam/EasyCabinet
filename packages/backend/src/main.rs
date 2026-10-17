@@ -98,6 +98,7 @@ fn init_router(state: AppState) -> axum::Router {
             "/auth/change-password",
             post(AuthController::change_password),
         )
+        .route("/auth/discord/auth", get(OAuth2Controller::discord_auth))
         .route("/auth/discord", get(OAuth2Controller::discord))
         .route("/aurora/auth", post(AuroraController::auth))
         .route("/aurora/join", post(AuroraController::join))

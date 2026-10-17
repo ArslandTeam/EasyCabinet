@@ -1,5 +1,5 @@
 import { IdleAnimation, SkinViewer } from "skinview3d";
-import { editProfile, logout_all, revokeSession } from "../shared/api";
+import { DISCORD_LINK, editProfile, logout_all, revokeSession } from "../shared/api";
 import { useEffect, useRef, useState } from "react";
 import { useAuthMiddleware } from "../shared/entities/auth/model/useAuthMiddleware";
 import { failure, success } from "../shared/lib";
@@ -231,6 +231,7 @@ export default function Profile() {
           Выход
         </button>
       </div>
+      <a href={DISCORD_LINK}>DISCORD</a>
     </div>
   );
 }

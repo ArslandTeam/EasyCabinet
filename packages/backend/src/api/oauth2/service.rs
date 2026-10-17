@@ -78,6 +78,12 @@ impl OAuth2Service {
         Ok(csrf_token)
     }
 
+    pub async fn get_auth_discord(cache: &CacheManager) -> Result<String, BackendError> {
+        let csrf_token = uuid::Uuid::new_v4().to_string();
+        cache.set(&csrf_token, "anonymous", 300).await?;
+        Ok(csrf_token)
+    }
+
     pub async fn link_discord(
         db: &DatabaseConnection,
         cache: &CacheManager,
