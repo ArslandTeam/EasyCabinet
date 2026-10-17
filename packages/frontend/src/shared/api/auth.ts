@@ -99,3 +99,13 @@ export async function logout_all() {
     // do nothing
   }
 }
+
+export async function revokeSession(session_id: string) {
+  try {
+    await axios.post("auth/revoke_session", { session_id });
+    return true;
+  } catch (error) {
+    handleError(error);
+    return false;
+  }
+}

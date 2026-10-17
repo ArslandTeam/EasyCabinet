@@ -1,8 +1,8 @@
 import { IdleAnimation, SkinViewer } from "skinview3d";
-import { discordLink, editProfile, logout_all } from "../shared/api";
+import { editProfile, logout_all, revokeSession } from "../shared/api";
 import { useEffect, useRef, useState } from "react";
 import { useAuthMiddleware } from "../shared/entities/auth/model/useAuthMiddleware";
-import { failure } from "../shared/lib";
+import { failure, success } from "../shared/lib";
 import { useNavigate } from "react-router";
 import { useAuth } from "../shared/entities/auth";
 import defaultSkin from "../assets/steve.png";
@@ -26,6 +26,23 @@ export default function Profile() {
     logoutSuccess();
     navigate("/");
   };
+
+  const doRevokeSession = async (sessionId: string) => {
+    const target = profile?.sessions.find((session) => session.id === sessionId);
+
+    if (await revokeSession(sessionId)) {
+      if (target?.current) {
+        logoutSuccess();
+        navigate("/");
+        return;
+      }
+
+      fetchProfile();
+      success("Сессия успешно завершена");
+    }
+  };
+
+
   useEffect(() => {
     if (!skinCanvas.current) return;
     const skin = new SkinViewer({
@@ -112,84 +129,48 @@ export default function Profile() {
     setSkinType(e.target.checked);
   };
 
-  const changeCapeElytra = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!skinViewer.current) return;
+  // const changeCapeElytra = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   if (!skinViewer.current) return;
 
-    if (!profile?.textures.cape_url) {
-      skinViewer.current.playerObject.backEquipment = null;
-      return;
-    }
-    skinViewer.current.playerObject.backEquipment = e.target.checked
-      ? "elytra"
-      : "cape";
-  };
+  //   if (!profile?.textures.cape_url) {
+  //     skinViewer.current.playerObject.backEquipment = null;
+  //     return;
+  //   }
+  //   skinViewer.current.playerObject.backEquipment = e.target.checked
+  //     ? "elytra"
+  //     : "cape";
+  // };
 
   return (
     <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mt-6 p-6 bg-neutral-800 rounded-sm">
-      <div>
+
+      <div className="flex flex-col items-center">
+        {profile?.login && <span className="border-2 border-stone-700 p-1 mb-1 rounded-sm">{profile.login}</span>}
         <canvas ref={skinCanvas} className="rounded-sm bg-neutral-900/20" />
         <div className="flex items-center justify-center">
           <span className="text-sm font-medium text-neutral-300 mr-2">
-            Плащ
+            Default
           </span>
           <label className="relative inline-flex items-center cursor-pointer my-2">
             <input
               type="checkbox"
-              name="isElytra"
+              name="isAlex"
               className="sr-only peer"
-              onChange={changeCapeElytra}
+              onChange={changeSkinType}
+              checked={skinType}
             />
-            <div className="w-11 h-6 peer-focus:outline-hidden peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:inset-s-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-neutral-600 peer-checked:bg-blue-600" />
+            <div className="w-11 h-6 peer-focus:outline-hidden rounded-full peer bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:inset-s-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-neutral-600 peer-checked:bg-primary-hover" />
           </label>
           <span className="ms-3 text-sm font-medium text-neutral-300">
-            Элитры
+            Slim
           </span>
         </div>
       </div>
+
       <form
         className="max-md:flex max-md:flex-col max-md:items-center"
         onSubmit={onSubmit}
       >
-        <table className="mb-6 w-full">
-          <tbody>
-            <tr className="max-md:flex max-md:flex-col max-md:items-center">
-              <td className="font-medium w-24">Тип скина:</td>
-              <td className="flex items-center">
-                <span className="text-sm font-medium text-neutral-300 mr-2">
-                  Default
-                </span>
-                <label className="relative inline-flex items-center cursor-pointer my-2">
-                  <input
-                    type="checkbox"
-                    name="isAlex"
-                    className="sr-only peer"
-                    onChange={changeSkinType}
-                    checked={skinType}
-                  />
-                  <div className="w-11 h-6 peer-focus:outline-hidden peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer bg-neutral-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:inset-s-0.5 after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-neutral-600 peer-checked:bg-blue-600" />
-                </label>
-                <span className="ms-3 text-sm font-medium text-neutral-300">
-                  Slim
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td className="hidden md:table-cell" />
-              <td className="hidden md:table-cell">
-                <small className="text-neutral-500">
-                  Определяется автоматически. Переключайте, если тип скина
-                  определился с ошибкой.
-                </small>
-              </td>
-              <td className="md:hidden text-center" colSpan={2}>
-                <small className="text-neutral-500">
-                  Определяется автоматически. Переключайте, если тип скина
-                  определился с ошибкой.
-                </small>
-              </td>
-            </tr>
-          </tbody>
-        </table>
         <div className="max-md:flex max-md:flex-col max-md:items-center max-md:justify-center">
           <input
             type="file"
@@ -220,32 +201,32 @@ export default function Profile() {
             Загрузить плащ
           </label>
         </div>
-        <br />
-        <button className="px-4 py-2 mt-6 bg-blue-600 hover:bg-blue-500 transition-colors rounded-lg save-button md:mr-3">
+        <button className="px-4 py-2 mt-4 bg-primary hover:bg-primary-hover transition-colors rounded-lg save-button md:mr-3">
           Сохранить изменения
         </button>
       </form>
 
-      <div className="flex flex-col items-center bg-neutral-700 p-3 rounded-sm max-w-87.5 w-full">
+      <div className="flex flex-col items-center p-3 rounded-sm max-w-87.5 border border-stone-700">
         <span className="font-bold">Сессии</span>
-
         {profile?.sessions.map((session, index) => (
-          <p key={index} className="mt-2 text-sm text-neutral-300">
-            {session.user_agent}
-
-            {session.current && <span className="text-green-500 text-xs ml-2">(Текущая)</span>}
-          </p>
+          <div key={index} className="flex flex-col text-sm mt-2 bg-neutral-900/20 text-neutral-300 p-2">
+            <div className="flex justify-between items-center gap-2">
+              <p>{session.user_agent}</p>
+              <button
+                className="w-8 h-8 text-2xl"
+                onClick={() => doRevokeSession(session.id)}
+              >
+                &times;
+                </button>
+            </div>
+            {session.current && <span className="mt-2 text-sm rounded-sm bg-primary self-start px-2 py-0.5">Текущая</span>}
+          </div>
         ))}
-
-        <div>
-          <a onClick={discordLink}>Discord</a>
-        </div>
-
 
         <button
           type="button"
           onClick={doLogoutAll}
-          className="mt-2 bg-blue-600 hover:bg-blue-500 transition-colors rounded-lg p-2"
+          className="mt-2 border border-neutral-600 rounded-lg hover:bg-neutral-700 transition-colors p-2"
         >
           Выход
         </button>
