@@ -1,13 +1,13 @@
 // TODO переписать
+use super::dto::*;
 use crate::{
     BackendError,
     api::{
         assets::service::{AssetType, AssetsService},
-        auth::{jwt, service::AuthService},
+        auth::service::{AuthService, JwtPayload},
         cache_manager::CacheManager,
         database::{entities::users, service::DatabaseService},
         storage_manager::StorageService,
-        user::dto,
     },
 };
 use migration::Expr;
@@ -22,11 +22,11 @@ impl UserService {
         cache: &CacheManager,
         current_session_id: &str,
         uuid: &str,
-    ) -> Result<dto::ResponseProfileDTO, BackendError> {
-        let user = DatabaseService::find_user(db, users::Column::Uuid, &uuid)
-            .await
-            .map_err(|_| BackendError::InternalError)?
+    ) -> Result<ResponseProfileDTO, BackendError> {
+        let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, uuid)
+            .await?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
+
         let textures = Self::get_textures_data(storage, &user).await;
 
         //TODO лучше вынести получений сессий в отдельный запрос
@@ -38,22 +38,19 @@ impl UserService {
                 let id = key
                     .rsplit_once(':')
                     .map(|(_, session_id)| session_id.to_string())
-                    .ok_or_else(|| {
-                        tracing::error!("Invalid session key format in Redis: {key}");
-                        BackendError::InternalError
-                    })?;
+                    .ok_or_else(|| BackendError::InternalError("".into()))?;
 
                 let current = id == current_session_id;
 
-                Ok(dto::SessionDTO {
+                Ok(SessionDTO {
                     id,
                     current,
                     user_agent,
                 })
             })
-            .collect::<Result<Vec<dto::SessionDTO>, BackendError>>()?;
+            .collect::<Result<Vec<SessionDTO>, BackendError>>()?;
 
-        Ok(dto::ResponseProfileDTO {
+        Ok(ResponseProfileDTO {
             login: user.login,
             textures,
             sessions,
@@ -63,7 +60,7 @@ impl UserService {
     pub async fn get_textures_data(
         storage: &StorageService,
         user: &users::Model,
-    ) -> dto::ResponseTexturesDTO {
+    ) -> ResponseTexturesDTO {
         let skin_url = user
             .skin_hash
             .as_ref()
@@ -73,7 +70,7 @@ impl UserService {
             .as_ref()
             .map(|hash| storage.format_url("cape", hash));
 
-        dto::ResponseTexturesDTO {
+        ResponseTexturesDTO {
             is_alex: user.is_alex,
             skin_url,
             cape_url,
@@ -83,17 +80,16 @@ impl UserService {
     pub async fn update_profile(
         db: &DatabaseConnection,
         storage: &StorageService,
-        user: jwt::JwtPayload,
-        profile: dto::RequestProfileDTO,
+        user: JwtPayload,
+        profile: RequestProfileDTO,
         skin: Option<&[u8]>,
         cape: Option<&[u8]>,
     ) -> Result<(), BackendError> {
         let mut update_user =
             users::Entity::update_many().filter(users::Column::Uuid.eq(&user.uuid));
 
-        let user = DatabaseService::find_user(db, users::Column::Uuid, &user.uuid)
-            .await
-            .map_err(|_| BackendError::InternalError)?
+        let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, &user.uuid)
+            .await?
             .ok_or(BackendError::BadRequest("User not found".into()))?;
 
         match (skin, profile.del_skin) {
@@ -135,7 +131,7 @@ impl UserService {
         update_user
             .exec(db)
             .await
-            .map_err(|_| BackendError::InternalError)?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
         Ok(())
     }
 
@@ -153,7 +149,7 @@ impl UserService {
             .col_expr(users::Column::Password, Expr::value(password_hash))
             .exec(db)
             .await
-            .map_err(|_| BackendError::InternalError)?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         cache
             .delete_pattern_except(
@@ -169,7 +165,7 @@ impl UserService {
         db: &DatabaseConnection,
         cache: &CacheManager,
         uuid: &str,
-        data: dto::RequestChangeEmail,
+        data: RequestChangeEmail,
     ) -> Result<(), BackendError> {
         let code = format!("verify_code_email:{}", data.email);
 
@@ -186,7 +182,7 @@ impl UserService {
             .col_expr(users::Column::Email, Expr::value(data.email))
             .exec(db)
             .await
-            .map_err(|_| BackendError::InternalError)?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         Ok(())
     }

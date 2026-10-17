@@ -1,5 +1,5 @@
 import { IdleAnimation, SkinViewer } from "skinview3d";
-import { editProfile, logout_all } from "../shared/api";
+import { discordLink, editProfile, logout_all } from "../shared/api";
 import { useEffect, useRef, useState } from "react";
 import { useAuthMiddleware } from "../shared/entities/auth/model/useAuthMiddleware";
 import { failure } from "../shared/lib";
@@ -33,6 +33,7 @@ export default function Profile() {
       width: 300,
       height: 400,
       skin: defaultSkin,
+      model: "default",
     });
 
     skin.animation = new IdleAnimation();
@@ -49,18 +50,24 @@ export default function Profile() {
   }, []);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !skinViewer.current) return;
 
     if (profile.textures.skin_url) {
-      skinViewer.current?.loadSkin(profile.textures.skin_url, {
+      skinViewer.current.loadSkin(profile.textures.skin_url, {
         model: profile.textures.is_alex ? "slim" : "default",
       });
+      setSkinType(!!profile.textures.is_alex);
+    } else {
+      skinViewer.current.loadSkin(defaultSkin, {
+        model: "default",
+      });
+      setSkinType(false);
     }
 
-    setSkinType(!!profile.textures.is_alex);
-
     if (profile.textures.cape_url) {
-      skinViewer.current?.loadCape(profile.textures.cape_url);
+      skinViewer.current.loadCape(profile.textures.cape_url);
+    } else {
+      skinViewer.current.playerObject.backEquipment = null;
     }
   }, [profile]);
 
@@ -214,7 +221,7 @@ export default function Profile() {
           </label>
         </div>
         <br />
-        <button className="px-4 py-2 mt-6 border bg-blue-600 border-blue-700 hover:bg-blue-500 hover:border-blue-600 transition-colors rounded-lg save-button md:mr-3">
+        <button className="px-4 py-2 mt-6 bg-blue-600 hover:bg-blue-500 transition-colors rounded-lg save-button md:mr-3">
           Сохранить изменения
         </button>
       </form>
@@ -222,16 +229,23 @@ export default function Profile() {
       <div className="flex flex-col items-center bg-neutral-700 p-3 rounded-sm max-w-87.5 w-full">
         <span className="font-bold">Сессии</span>
 
-        {profile?.sessions.map((userAgent, index) => (
-          <p key={index} className="mt-2">
-            {userAgent}
+        {profile?.sessions.map((session, index) => (
+          <p key={index} className="mt-2 text-sm text-neutral-300">
+            {session.user_agent}
+
+            {session.current && <span className="text-green-500 text-xs ml-2">(Текущая)</span>}
           </p>
         ))}
+
+        <div>
+          <a onClick={discordLink}>Discord</a>
+        </div>
+
 
         <button
           type="button"
           onClick={doLogoutAll}
-          className="mt-2 bg-blue-600 border-blue-700 hover:bg-blue-500 hover:border-blue-600 transition-colors rounded-lg p-2"
+          className="mt-2 bg-blue-600 hover:bg-blue-500 transition-colors rounded-lg p-2"
         >
           Выход
         </button>

@@ -1,9 +1,12 @@
 use crate::api::{
     aurora::controller::AuroraController, auth::controller::AuthController,
-    cache_manager::CacheManager, storage_manager::StorageService, user::controller::UserControler,
+    cache_manager::CacheManager, oauth2::controller::OAuth2Controller,
+    storage_manager::StorageService, user::controller::UserControler,
 };
 use axum::http::{Method, StatusCode, header};
 use axum_extra::extract::cookie::Key;
+use hyper_rustls::HttpsConnectorBuilder;
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use std::{ops::Deref, sync::Arc};
 mod api;
 pub mod generate_config;
@@ -30,19 +33,27 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut opt = sea_orm::ConnectOptions::new(&CONFIG.database_url);
     opt.max_connections(CONFIG.max_connection)
         .connect_timeout(std::time::Duration::from_secs(CONFIG.connect_timeout))
-        .sqlx_logging(false);
+        .sqlx_logging(CONFIG.sql_log);
     let db = sea_orm::Database::connect(opt).await?;
     migration::Migrator::up(&db, None).await?;
 
     let cache = CacheManager::cache_init().await;
     let storage = StorageService::storage_init().await;
     let key = Key::from(CONFIG.cookies_secret.as_bytes());
+    let https = HttpsConnectorBuilder::new()
+        .with_native_roots()
+        .unwrap()
+        .https_only()
+        .enable_http1()
+        .build();
+    let http_client = Client::builder(TokioExecutor::new()).build::<_, axum::body::Body>(https);
 
     let state = AppState(Arc::new(InnerState {
         db,
         cache,
         storage,
         key,
+        http_client,
     }));
 
     let listener =
@@ -59,6 +70,7 @@ fn init_router(state: AppState) -> axum::Router {
     let private_routes = axum::Router::new()
         .route("/auth/logout_all", post(AuthController::logout_all))
         .route("/auth/revoke_session", post(AuthController::revoke_session))
+        .route("/auth/discord/link", get(OAuth2Controller::discord_link))
         .route("/users", get(UserControler::get_profile))
         .route("/users", put(UserControler::update_profile))
         .route(
@@ -68,7 +80,7 @@ fn init_router(state: AppState) -> axum::Router {
         .route("/users/change-email", put(UserControler::change_email))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
-            api::auth::jwt::auth_middleware,
+            AuthController::auth_middleware,
         ));
 
     let routes = axum::Router::new()
@@ -86,6 +98,7 @@ fn init_router(state: AppState) -> axum::Router {
             "/auth/change-password",
             post(AuthController::change_password),
         )
+        .route("/auth/discord", get(OAuth2Controller::discord))
         .route("/aurora/auth", post(AuroraController::auth))
         .route("/aurora/join", post(AuroraController::join))
         .route("/aurora/hasJoined", post(AuroraController::has_joined))
@@ -136,6 +149,10 @@ struct InnerState {
     cache: CacheManager,
     storage: StorageService,
     key: Key,
+    http_client: hyper_util::client::legacy::Client<
+        hyper_rustls::HttpsConnector<hyper_util::client::legacy::connect::HttpConnector>,
+        axum::body::Body,
+    >,
 }
 
 /// Эта реализация сообщает [`SignedCookieJar`], как получить доступ к ключу из нашего состояния
@@ -189,7 +206,7 @@ pub enum BackendError {
     BadRequest(String),
     BadRequestAurora(String),
     Unauthorized(String),
-    InternalError,
+    InternalError(Box<dyn std::error::Error + Send + Sync>),
 }
 
 // TODO возможно надо будет переписать
@@ -211,7 +228,10 @@ impl axum::response::IntoResponse for BackendError {
                 axum::Json(serde_json::json!({"message": msg})),
             )
                 .into_response(),
-            BackendError::InternalError => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            BackendError::InternalError(error) => {
+                tracing::error!("{error}");
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
         }
     }
 }

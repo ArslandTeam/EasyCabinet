@@ -1,8 +1,9 @@
 import { failure, success } from "../shared/lib";
-import { register, verifyEmail } from "../shared/api";
+import { discordAuth, register, verifyEmail } from "../shared/api";
 import { useNavigate } from "react-router";
 import { Link } from "react-router";
 import { SubmitButton } from "../shared/ui/SubmitButton";
+import { FaDiscord } from "react-icons/fa";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -107,7 +108,8 @@ export default function Register() {
           </div>
           <SubmitButton pendingText="Регистрация..." style="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2">Регистрация</SubmitButton>
         </form>
-        <div className="mt-4 text-center text-sm">
+        <div className="mt-4 text-center text-sm flex flex-col items-center">
+          <a href={discordAuth()}><FaDiscord className="w-10 h-10"/></a>
           Уже есть аккаунт?
           <Link
             to="/authentication"
