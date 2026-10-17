@@ -358,9 +358,7 @@ impl AuthService {
         .unwrap_or(false)
     }
 
-    pub(crate) async fn extract_jwt_token(
-        jar: &SignedCookieJar,
-    ) -> Result<JwtPayload, BackendError> {
+    pub async fn extract_jwt_token(jar: &SignedCookieJar) -> Result<JwtPayload, BackendError> {
         let cookie = jar
             .get("access_token")
             .ok_or(BackendError::Unauthorized("Not found access token".into()))?;

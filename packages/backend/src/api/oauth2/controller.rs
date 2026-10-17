@@ -1,5 +1,6 @@
 use super::{dto::*, service::*};
 use axum::{
+    body::Body,
     extract::{Query, State},
     http::{HeaderMap, header::USER_AGENT},
     response::{IntoResponse, Redirect},
@@ -13,6 +14,22 @@ use crate::{AppState, BackendError, api::auth::service::AuthService, generate_co
 pub struct OAuth2Controller;
 
 impl OAuth2Controller {
+    pub async fn get_discord_link(
+        State(state): State<AppState>,
+        jar: SignedCookieJar,
+    ) -> Result<impl IntoResponse, BackendError> {
+        let link_token = OAuth2Service::get_link_discord(&state.cache, &jar).await?;
+        let state_param = format!("link:{}", link_token);
+        let redirect_uri = format!("{}/auth/discord", CONFIG.backend_url);
+
+        let discord_url = format!(
+            "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify%20email&state={}",
+            CONFIG.client_id_discord, &redirect_uri, &state_param
+        );
+
+        Ok(Redirect::to(&discord_url))
+    }
+
     pub async fn discord(
         headers: HeaderMap,
         State(state): State<AppState>,
@@ -51,12 +68,9 @@ impl OAuth2Controller {
             ));
         }
 
-        let body_bytes = res
-            .into_body()
-            .collect()
+        let body_bytes = axum::body::to_bytes(Body::new(res.into_body()), usize::MAX)
             .await
-            .map_err(|e| BackendError::InternalError(e.into()))?
-            .to_bytes();
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         let token_data: DiscordTokenResponse = serde_json::from_slice(&body_bytes)
             .map_err(|e| BackendError::InternalError(e.into()))?;
@@ -68,7 +82,7 @@ impl OAuth2Controller {
                 "Authorization",
                 format!("Bearer {}", token_data.access_token),
             )
-            .body(axum::body::Body::empty())
+            .body(Body::empty())
             .map_err(|e| BackendError::InternalError(e.into()))?;
 
         let res = state
@@ -81,21 +95,17 @@ impl OAuth2Controller {
             return Err(BackendError::InternalError("".into()));
         }
 
-        let body_bytes = res
-            .into_body()
-            .collect()
+        let body_bytes = axum::body::to_bytes(Body::new(res.into_body()), usize::MAX)
             .await
-            .map_err(|e| BackendError::InternalError(e.into()))?
-            .to_bytes();
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         let user_data: DiscordUserResponse = serde_json::from_slice(&body_bytes)
             .map_err(|e| BackendError::InternalError(e.into()))?;
 
-        //TODO сделать првоерку автооризован ли пользователь или нет
-        // if params.state.starts_with("link_") {
-        //     let current_user_uuid = params.state.replace("link_", "");
+        // if params.state.starts_with("link") {
+        //     let uuid = AuthService::extract_jwt_token(&jar).await?.uuid;
 
-        //     OAuth2Service::link_discord(&state.db, &user_data.id, &current_user_uuid).await?;
+        //     OAuth2Service::link_discord(&state.db, &user_data.id, &uuid).await?;
 
         //     return Ok((
         //         jar,

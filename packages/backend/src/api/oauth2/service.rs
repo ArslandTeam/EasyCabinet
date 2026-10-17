@@ -6,6 +6,7 @@ use crate::{
         database::{entities::users, service::DatabaseService},
     },
 };
+use axum_extra::extract::SignedCookieJar;
 use sea_orm::{ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter};
 
 pub struct OAuth2Service;
@@ -73,6 +74,16 @@ impl OAuth2Service {
             user_agent,
         )
         .await?)
+    }
+
+    pub async fn get_link_discord(
+        cache: &CacheManager,
+        jar: &SignedCookieJar,
+    ) -> Result<String, BackendError> {
+        let uuid_user = &AuthService::extract_jwt_token(jar).await?.uuid;
+        let link_token = uuid::Uuid::new_v4().to_string();
+        cache.set(&link_token, &uuid_user, 300).await?;
+        Ok(link_token)
     }
 
     pub async fn link_discord(
