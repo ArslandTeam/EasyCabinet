@@ -136,7 +136,6 @@ impl UserService {
         Ok(())
     }
 
-    // TODO вынести в auth service и перемновать?
     pub async fn change_password(
         db: &DatabaseConnection,
         cache: &CacheManager,

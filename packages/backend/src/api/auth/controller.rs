@@ -126,11 +126,15 @@ impl AuthController {
         AuthService::revoke_session(&state.cache, &payload_jwt.uuid, &payload.session_id).await?;
 
         if payload_jwt.session_id == payload.session_id {
-            jar = jar.remove(Cookie::from("refresh_token")).remove(
-                Cookie::build(("access_token", ""))
-                    .path(&CONFIG.cookie_path)
-                    .build(),
-            );
+            let refresh_cookie = Cookie::build(("refresh_token", ""))
+                .path(&CONFIG.cookie_path)
+                .build();
+
+            let access_cookie = Cookie::build(("access_token", ""))
+                .path(&CONFIG.cookie_path)
+                .build();
+
+            jar = jar.remove(refresh_cookie).remove(access_cookie);
         }
 
         Ok((StatusCode::OK, jar))

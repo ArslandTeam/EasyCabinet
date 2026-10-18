@@ -66,9 +66,7 @@ export async function changePassword(reset_token: string, password: string) {
 
 export async function refresh() {
   try {
-    await axios.post("auth/refresh", null, {
-      withCredentials: true,
-    });
+    await axios.post("auth/refresh", null);
     return true;
   } catch {
     return false;
