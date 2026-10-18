@@ -178,7 +178,7 @@ impl AuthService {
         DatabaseService::update_user(
             db,
             database::entities::users::Column::Password,
-            &Self::generate_hash_password(password).await?,
+            Some(&Self::generate_hash_password(password).await?),
             database::entities::users::Column::Email,
             &email,
         )

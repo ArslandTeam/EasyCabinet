@@ -25,7 +25,7 @@ impl UserService {
     ) -> Result<ResponseProfileDTO, BackendError> {
         let user = DatabaseService::find::<users::Entity>(db, users::Column::Uuid, uuid)
             .await?
-            .ok_or(BackendError::BadRequest("User not found".into()))?;
+            .ok_or_else(|| BackendError::BadRequest("User not found".into()))?;
 
         let textures = Self::get_textures_data(storage, &user).await;
 
@@ -52,6 +52,7 @@ impl UserService {
 
         Ok(ResponseProfileDTO {
             login: user.login,
+            discord_link: user.discord_id.is_some(),
             textures,
             sessions,
         })

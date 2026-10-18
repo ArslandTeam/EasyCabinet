@@ -27,11 +27,18 @@ impl OAuth2Controller {
         let discord_url = format!(
             "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify%20email&state={}",
             CONFIG.client_id_discord,
-            format!("{}/auth/discord", CONFIG.backend_url),
+            format!("{}/auth/discord/callback", CONFIG.backend_url),
             format!("link:{}", csrf_token)
         );
 
         Ok(Redirect::to(&discord_url))
+    }
+
+    pub async fn discord_unlink(
+        State(state): State<AppState>,
+        Extension(payload): Extension<JwtPayload>,
+    ) -> Result<impl IntoResponse, BackendError> {
+        OAuth2Service::get_unlink_discord(&state.db, &payload.uuid).await
     }
 
     pub async fn discord_auth(
@@ -42,7 +49,7 @@ impl OAuth2Controller {
         let discord_url = format!(
             "https://discord.com/api/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope=identify%20email&state={}",
             CONFIG.client_id_discord,
-            format!("{}/auth/discord", CONFIG.backend_url),
+            format!("{}/auth/discord/callback", CONFIG.backend_url),
             format!("auth:{}", csrf_token)
         );
         Ok(Redirect::to(&discord_url))
@@ -80,7 +87,7 @@ impl OAuth2Controller {
             CONFIG.client_id_discord,
             CONFIG.client_secret_discord,
             params.code,
-            format!("{}/auth/discord", CONFIG.backend_url)
+            format!("{}/auth/discord/callback", CONFIG.backend_url)
         );
 
         let token_req = Request::builder()

@@ -70,7 +70,7 @@ impl DatabaseService {
     pub async fn update_user(
         db: &DatabaseConnection,
         column: users::Column,
-        value: &str,
+        value: Option<&str>,
         column_filter: users::Column,
         filter: &str,
     ) -> Result<(), BackendError> {

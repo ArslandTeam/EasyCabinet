@@ -8,9 +8,9 @@ use axum::{
     response::IntoResponse,
 };
 
-pub struct UserControler;
+pub struct UserController;
 
-impl UserControler {
+impl UserController {
     pub async fn get_profile(
         State(state): State<AppState>,
         Extension(payload): Extension<JwtPayload>,

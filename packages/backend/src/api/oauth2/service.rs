@@ -44,7 +44,7 @@ impl OAuth2Service {
                     DatabaseService::update_user(
                         db,
                         users::Column::DiscordId,
-                        discord_id,
+                        Some(discord_id),
                         users::Column::Uuid,
                         &user_model.uuid,
                     )
@@ -95,25 +95,48 @@ impl OAuth2Service {
             .await?
             .ok_or_else(|| BackendError::BadRequest("Session expired or invalid token".into()))?;
 
-        if DatabaseService::find::<users::Entity>(db, users::Column::DiscordId, discord_id)
+        DatabaseService::find::<users::Entity>(db, users::Column::DiscordId, discord_id)
             .await?
-            .is_some()
-        {
-            return Err(BackendError::BadRequest(
-                "This Discord account is already linked to another user".into(),
-            ));
-        };
+            .ok_or_else(|| {
+                BackendError::BadRequest(
+                    "This Discord account is already linked to another user".into(),
+                )
+            })?;
 
         DatabaseService::update_user(
             db,
             users::Column::DiscordId,
-            discord_id,
+            Some(discord_id),
             users::Column::Uuid,
             &uuid,
         )
         .await?;
 
         cache.delete(csrf_token).await?;
+
+        Ok(())
+    }
+
+    pub async fn get_unlink_discord(
+        db: &DatabaseConnection,
+        uuid: &str,
+    ) -> Result<(), BackendError> {
+        DatabaseService::find::<users::Entity>(db, users::Column::Uuid, uuid)
+            .await?
+            .ok_or_else(|| BackendError::BadRequest("User not found".into()))?
+            .discord_id
+            .ok_or_else(|| {
+                BackendError::BadRequest("Discord account is not linked to this user".into())
+            })?;
+
+        DatabaseService::update_user(
+            db,
+            users::Column::DiscordId,
+            None,
+            users::Column::Uuid,
+            uuid,
+        )
+        .await?;
 
         Ok(())
     }

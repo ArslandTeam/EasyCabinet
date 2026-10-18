@@ -36,7 +36,7 @@ impl AuroraService {
         DatabaseService::update_user(
             db,
             users::Column::AccessToken,
-            &access_token,
+            Some(&access_token),
             users::Column::Login,
             &login,
         )
@@ -72,7 +72,7 @@ impl AuroraService {
         DatabaseService::update_user(
             db,
             users::Column::ServerId,
-            &body.server_id,
+            Some(&body.server_id),
             users::Column::Uuid,
             &body.user_uuid,
         )

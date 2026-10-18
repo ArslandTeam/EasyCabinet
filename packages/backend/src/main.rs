@@ -1,7 +1,7 @@
 use crate::api::{
     aurora::controller::AuroraController, auth::controller::AuthController,
     cache_manager::CacheManager, oauth2::controller::OAuth2Controller,
-    storage_manager::StorageService, user::controller::UserControler,
+    storage_manager::StorageService, user::controller::UserController,
 };
 use axum::http::{Method, StatusCode, header};
 use axum_extra::extract::cookie::Key;
@@ -70,14 +70,21 @@ fn init_router(state: AppState) -> axum::Router {
     let private_routes = axum::Router::new()
         .route("/auth/logout_all", post(AuthController::logout_all))
         .route("/auth/revoke_session", post(AuthController::revoke_session))
-        .route("/auth/discord/link", get(OAuth2Controller::discord_link))
-        .route("/users", get(UserControler::get_profile))
-        .route("/users", put(UserControler::update_profile))
+        .route(
+            "/users/connections/discord",
+            get(OAuth2Controller::discord_link),
+        )
+        .route(
+            "/users/unlink/discord",
+            get(OAuth2Controller::discord_unlink),
+        )
+        .route("/users", get(UserController::get_profile))
+        .route("/users", put(UserController::update_profile))
         .route(
             "/users/change-password",
-            put(UserControler::change_password),
+            put(UserController::change_password),
         )
-        .route("/users/change-email", put(UserControler::change_email))
+        .route("/users/change-email", put(UserController::change_email))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             AuthController::auth_middleware,
@@ -98,8 +105,8 @@ fn init_router(state: AppState) -> axum::Router {
             "/auth/change-password",
             post(AuthController::change_password),
         )
-        .route("/auth/discord/auth", get(OAuth2Controller::discord_auth))
-        .route("/auth/discord", get(OAuth2Controller::discord))
+        .route("/auth/discord", get(OAuth2Controller::discord_auth))
+        .route("/auth/discord/callback", get(OAuth2Controller::discord))
         .route("/aurora/auth", post(AuroraController::auth))
         .route("/aurora/join", post(AuroraController::join))
         .route("/aurora/hasJoined", post(AuroraController::has_joined))

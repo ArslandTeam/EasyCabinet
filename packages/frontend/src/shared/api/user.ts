@@ -4,6 +4,7 @@ import { axios, handleError, success } from "../lib";
 
 export interface Profile {
   login: string;
+  discord_link: boolean;
   textures: Textures;
   sessions: Session[];
 }
@@ -61,5 +62,16 @@ export async function editEmail(email: string, code: number) {
   } catch (error) {
     handleError(error);
     return false;
+  }
+}
+
+export async function unlinkDiscord() {
+  try {
+    await axios.get("users/unlink/discord")
+    success("Discord unlink")
+    return true;
+  } catch (error) {
+    handleError(error)
+    return false
   }
 }

@@ -1,11 +1,12 @@
 import { IdleAnimation, SkinViewer } from "skinview3d";
-import { DISCORD_LINK, editProfile, logout_all, revokeSession } from "../shared/api";
+import { DISCORD_LINK, editProfile, logout_all, revokeSession, unlinkDiscord } from "../shared/api";
 import { useEffect, useRef, useState } from "react";
 import { useAuthMiddleware } from "../shared/entities/auth/model/useAuthMiddleware";
 import { failure, success } from "../shared/lib";
 import { useNavigate } from "react-router";
 import { useAuth } from "../shared/entities/auth";
 import defaultSkin from "../assets/steve.png";
+import { SubmitButton } from "../shared/ui/SubmitButton";
 
 export default function Profile() {
   useAuthMiddleware();
@@ -39,6 +40,12 @@ export default function Profile() {
 
       fetchProfile();
       success("Сессия успешно завершена");
+    }
+  };
+
+  const doUnlinkDiscord = async () => {
+    if (await unlinkDiscord()) {
+      fetchProfile();
     }
   };
 
@@ -231,7 +238,53 @@ export default function Profile() {
           Выход
         </button>
       </div>
-      <a href={DISCORD_LINK}>DISCORD</a>
+      {/*<div className="flex flex-col items-center p-3 rounded-sm max-w-87.5 border border-stone-700">
+        <span className="font-bold mb-4">Смена пароля</span>
+        <form className="flex flex-col gap-4">
+          <input placeholder="Пароль" />
+          <input placeholder="Повторите пароль" />
+        </form>
+      </div>*/}
+      {/*<div className="flex flex-col items-center p-3 rounded-sm max-w-87.5 border border-stone-700">
+        <span className="font-bold mb-4">Смена почты</span>
+        <form className="flex flex-col gap-4">
+          <input placeholder="почта" />
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="number"
+              name="code"
+              placeholder="Код"
+              min="100000"
+              max="999999"
+              required
+              className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0"
+            />
+            <button
+              type="button"
+              // onClick={verifyEmailSubmit}
+              className="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2"
+            >
+              Получить код
+            </button>
+          </div>
+        </form>
+      </div>*/}
+      {profile?.discord_link ? (
+        <button
+          type="button"
+          onClick={() => { doUnlinkDiscord() }}
+          className="border border-red-600 text-red-500 rounded-lg hover:bg-red-600/10 transition-colors p-2"
+        >
+          Отвезать Discord
+        </button>
+      ) : (
+        <a
+          href={DISCORD_LINK}
+          className="border border-neutral-600 rounded-lg hover:bg-neutral-700 transition-colors p-2 text-center"
+        >
+          Привязать Discord
+        </a>
+      )}
     </div>
   );
 }
