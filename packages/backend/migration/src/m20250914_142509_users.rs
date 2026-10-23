@@ -33,7 +33,8 @@ impl MigrationTrait for Migration {
                             .unique_key()
                             .not_null(),
                     )
-                    .col(ColumnDef::new(Users::Password).string_len(255).not_null())
+                    .col(ColumnDef::new(Users::Password).string_len(255).null())
+                    .col(ColumnDef::new(Users::DiscordId).string_len(255).null())
                     .col(ColumnDef::new(Users::AccessToken).string_len(255).null())
                     .col(ColumnDef::new(Users::ServerId).string_len(255).null())
                     .col(ColumnDef::new(Users::SkinHash).string_len(255).null())
@@ -67,6 +68,8 @@ enum Users {
     Login,
     #[sea_orm(iden = "password")]
     Password,
+    #[sea_orm(iden = "discordId")]
+    DiscordId,
     #[sea_orm(iden = "accessToken")]
     AccessToken,
     #[sea_orm(iden = "serverId")]

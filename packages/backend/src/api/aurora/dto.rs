@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct RequestJoinDto {
     #[serde(rename = "userUUID")]
     pub user_uuid: String,
@@ -10,20 +11,20 @@ pub struct RequestJoinDto {
     pub server_id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct RequestHasJoinedDto {
     pub username: String,
     #[serde(rename = "serverID")]
     pub server_id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct RequestProfileDTO {
     #[serde(rename = "userUUID")]
     pub user_uuid: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct RequestProfilesDto {
     pub usernames: Vec<String>,
 }

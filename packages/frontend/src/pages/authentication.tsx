@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router";
 import { failure } from "../shared/lib";
-import { authentication } from "../shared/api";
+import { authentication, DISCORD_AUTH } from "../shared/api";
 import { useAuth } from "../shared/entities/auth";
 import { Link } from "react-router";
 import { SubmitButton } from "../shared/ui/SubmitButton";
+import { FaDiscord} from "react-icons/fa";
 
 function Authentication() {
   const navigate = useNavigate();
@@ -45,7 +46,8 @@ function Authentication() {
           />
           <SubmitButton pendingText="Вход..." style="bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg p-2">Войти</SubmitButton>
         </form>
-        <div className="flex flex-col gap-2 mt-4 text-center text-sm">
+        <div className="flex flex-col gap-2 mt-4 text-center text-sm items-center">
+          <a href={DISCORD_AUTH}><FaDiscord className="w-10 h-10"/></a>
           <span>
             Нет аккаунта?
             <Link
