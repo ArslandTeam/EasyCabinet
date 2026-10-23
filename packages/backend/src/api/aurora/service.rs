@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use axum::Json;
-use sea_orm::DatabaseConnection;
+use sea_orm::{ColumnTrait, DatabaseConnection};
 
 pub struct AuroraService;
 
@@ -127,10 +127,9 @@ impl AuroraService {
         db: &DatabaseConnection,
         body: RequestProfilesDto,
     ) -> Result<Json<AuroraResponse<Vec<ProfilesResponseDto>>>, BackendError> {
-        let users = DatabaseService::find_all::<users::Entity, Vec<String>>(
+        let users = DatabaseService::find_all::<users::Entity, _>(
             db,
-            users::Column::Login,
-            body.usernames,
+            users::Column::Login.is_in(body.usernames),
         )
         .await?;
 

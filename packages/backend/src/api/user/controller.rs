@@ -63,17 +63,15 @@ impl UserController {
             }
         }
 
-        let profile = RequestProfileDTO {
-            is_alex,
-            del_cape,
-            del_skin,
-        };
-
         UserService::update_profile(
             &state.db,
             &state.storage,
             payload,
-            profile,
+            RequestProfileDTO {
+                is_alex,
+                del_skin,
+                del_cape,
+            },
             skin.as_deref(),
             cape.as_deref(),
         )

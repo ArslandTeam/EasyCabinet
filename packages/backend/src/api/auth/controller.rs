@@ -94,9 +94,11 @@ impl AuthController {
 
         AuthService::logout(&state.cache, refresh_token).await?;
 
-        let jar = jar
-            .remove(Cookie::from("refresh_token"))
-            .remove(Cookie::build("access_token").path("/").build());
+        let jar = jar.remove(Cookie::from("refresh_token")).remove(
+            Cookie::build("access_token")
+                .path(&CONFIG.cookie_path)
+                .build(),
+        );
 
         Ok((StatusCode::OK, jar))
     }

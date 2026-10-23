@@ -1,8 +1,6 @@
 use crate::{BackendError, api::database::entities::users};
-use migration::Expr;
-use sea_orm::{
-    ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, ExprTrait, QueryFilter, SqlErr,
-};
+use migration::{Expr, IntoCondition};
+use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, SqlErr};
 
 pub struct DatabaseService;
 
@@ -23,18 +21,16 @@ impl DatabaseService {
             .map_err(|e| BackendError::InternalError(e.into()))
     }
 
-    pub async fn find_all<T, I>(
+    pub async fn find_all<T, C>(
         db: &DatabaseConnection,
-        column: T::Column,
-        value: I,
+        filters: C,
     ) -> Result<Vec<T::Model>, BackendError>
     where
         T: EntityTrait,
-        T::Column: ColumnTrait,
-        I: IntoIterator<Item = String>,
+        C: IntoCondition,
     {
         T::find()
-            .filter(Expr::col(column).is_in(value))
+            .filter(filters)
             .all(db)
             .await
             .map_err(|e| BackendError::InternalError(e.into()))
@@ -67,6 +63,7 @@ impl DatabaseService {
             })
     }
 
+    /// Be careful with `Option<T>`. Mandatory parameters are processed in advance.
     pub async fn update_user(
         db: &DatabaseConnection,
         column: users::Column,

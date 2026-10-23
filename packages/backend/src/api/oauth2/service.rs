@@ -6,7 +6,7 @@ use crate::{
         database::{entities::users, service::DatabaseService},
     },
 };
-use sea_orm::{ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, Condition, DatabaseConnection};
 
 pub struct OAuth2Service;
 
@@ -20,15 +20,13 @@ impl OAuth2Service {
         email: &str,
         user_agent: &str,
     ) -> Result<(String, String), BackendError> {
-        let matched_users = users::Entity::find()
-            .filter(
-                Condition::any()
-                    .add(users::Column::DiscordId.eq(discord_id))
-                    .add(users::Column::Email.eq(email)),
-            )
-            .all(db)
-            .await
-            .map_err(|e| BackendError::InternalError(e.into()))?;
+        let matched_users = DatabaseService::find_all::<users::Entity, _>(
+            db,
+            Condition::any()
+                .add(users::Column::DiscordId.eq(discord_id))
+                .add(users::Column::Email.eq(email)),
+        )
+        .await?;
 
         if matched_users.len() > 1 {
             return Err(BackendError::InternalError(
