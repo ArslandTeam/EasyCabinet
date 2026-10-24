@@ -8,21 +8,21 @@ static SMTP_MAILER: LazyLock<SmtpTransport> = LazyLock::new(|| {
         .build()
 });
 
-async fn send_email(email: String, subject: String, html: String) -> Result<(), BackendError> {
+pub(crate) async fn send_email(
+    email: String,
+    subject: String,
+    html: String,
+) -> Result<(), BackendError> {
     tokio::task::spawn_blocking(move || {
         let message = Message::builder()
             .from(CONFIG.email_from.clone())
-            .to(email.parse().map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?)
+            .to(email
+                .parse()
+                .map_err(|e| BackendError::InternalError(Box::new(e)))?)
             .subject(subject)
             .header(ContentType::TEXT_HTML)
             .body(html)
-            .map_err(|e| {
-                tracing::error!("{e}");
-                BackendError::InternalError
-            })?;
+            .map_err(|e| BackendError::InternalError(e.into()))?;
 
         if let Err(e) = SMTP_MAILER.send(&message) {
             tracing::error!("{e}");
@@ -34,15 +34,14 @@ async fn send_email(email: String, subject: String, html: String) -> Result<(), 
     Ok(())
 }
 
-async fn render_template(
+pub(crate) async fn render_template(
     file: &str,
     replacements: &[(&str, &str)],
 ) -> Result<String, BackendError> {
     let path = std::path::Path::new("templates_email").join(file);
-    let content = tokio::fs::read_to_string(&path).await.map_err(|e| {
-        tracing::error!("{e}");
-        BackendError::InternalError
-    })?;
+    let content = tokio::fs::read_to_string(&path)
+        .await
+        .map_err(|e| BackendError::InternalError(e.into()))?;
 
     Ok(replacements
         .iter()
@@ -51,7 +50,7 @@ async fn render_template(
 
 pub async fn send_reset_password_email(email: &str, reset_token: &str) -> Result<(), BackendError> {
     let html = render_template(
-        "verify_email.html",
+        "reset_password.html",
         &[
             ("{{ frontend_url }}", &CONFIG.frontend_url),
             ("{{ reset_token }}", reset_token),
@@ -71,28 +70,4 @@ pub async fn send_verify_email(email: &str, code: u32) -> Result<(), BackendErro
     )
     .await?;
     send_email(email.to_string(), "Подтверждение почты".to_string(), html).await
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    /// Example: `RENDER_TEMPLATE="verify_email.html" FRONTEND_URL="http://example.com" CODE="123456" cargo test render_template_test -- --nocapture`
-    async fn render_template_test() {
-        let result = render_template(
-            &std::env::var("RENDER_TEMPLATE").unwrap(),
-            &[
-                (
-                    "{{ frontend_url }}",
-                    &std::env::var("FRONTEND_URL").unwrap(),
-                ),
-                ("{{ code }}", &std::env::var("CODE").unwrap()),
-            ],
-        )
-        .await;
-
-        assert!(result.is_ok(), "{:?}", result.err());
-        println!("{}", result.unwrap());
-    }
 }

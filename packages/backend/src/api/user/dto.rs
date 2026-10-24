@@ -11,6 +11,7 @@ pub struct RequestProfileDTO {
 #[derive(Deserialize, Serialize)]
 pub struct ResponseProfileDTO {
     pub login: String,
+    pub discord_link: bool,
     pub textures: ResponseTexturesDTO,
     pub sessions: Vec<SessionDTO>,
 }
