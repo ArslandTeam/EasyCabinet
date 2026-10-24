@@ -93,13 +93,14 @@ impl OAuth2Service {
             .await?
             .ok_or_else(|| BackendError::BadRequest("Session expired or invalid token".into()))?;
 
-        DatabaseService::find::<users::Entity>(db, users::Column::DiscordId, discord_id)
+        if DatabaseService::find::<users::Entity>(db, users::Column::DiscordId, discord_id)
             .await?
-            .ok_or_else(|| {
-                BackendError::BadRequest(
-                    "This Discord account is already linked to another user".into(),
-                )
-            })?;
+            .is_some()
+        {
+            return Err(BackendError::BadRequest(
+                "This Discord account is already linked to another user".into(),
+            ));
+        }
 
         DatabaseService::update_user(
             db,

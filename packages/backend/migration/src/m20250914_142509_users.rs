@@ -34,7 +34,12 @@ impl MigrationTrait for Migration {
                             .not_null(),
                     )
                     .col(ColumnDef::new(Users::Password).string_len(255).null())
-                    .col(ColumnDef::new(Users::DiscordId).string_len(255).null())
+                    .col(
+                        ColumnDef::new(Users::DiscordId)
+                            .string_len(255)
+                            .unique_key()
+                            .null(),
+                    )
                     .col(ColumnDef::new(Users::AccessToken).string_len(255).null())
                     .col(ColumnDef::new(Users::ServerId).string_len(255).null())
                     .col(ColumnDef::new(Users::SkinHash).string_len(255).null())
