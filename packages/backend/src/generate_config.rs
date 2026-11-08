@@ -29,6 +29,8 @@ pub struct Config {
     pub max_connection: u32,
     pub sql_log: bool,
     pub connect_timeout: u64,
+    pub easy_discord_bot_token: Option<String>,
+    pub easy_discord_bot_address: Option<String>,
     pub client_id_discord: String,
     pub client_secret_discord: String,
     #[serde(deserialize_with = "deserialize_mailbox")]

@@ -145,9 +145,40 @@ impl OAuth2Controller {
 
         if action == "link" {
             OAuth2Service::link_discord(&state.db, &state.cache, &user_data.id, csrf_token).await?;
+
+            // easy discord bot
+            if let Some(ref token) = CONFIG.easy_discord_bot_token {
+                let bot_url = format!(
+                    "{}/verify?user_id={}",
+                    CONFIG.easy_discord_bot_address.as_deref().unwrap(), // no safe
+                    user_data.id
+                );
+
+                let bot_req = Request::builder()
+                    .method(Method::GET)
+                    .uri(&bot_url)
+                    .header("X-Authentication-Token", token)
+                    .body(Body::empty())
+                    .map_err(|e| BackendError::InternalError(e.into()))?;
+
+                let bot_res = state
+                    .http_client
+                    .request(bot_req)
+                    .await
+                    .map_err(|e| BackendError::InternalError(e.into()))?;
+
+                if !bot_res.status().is_success() {
+                    tracing::error!(
+                        "bot failed to assign role for discord_id {}. Status: {}",
+                        user_data.id,
+                        bot_res.status()
+                    )
+                }
+            }
+
             return Ok((
                 jar,
-                Redirect::to(&format!("{}/profile?link=success", CONFIG.frontend_url)),
+                Redirect::to(&format!("{}/profile", CONFIG.frontend_url)),
             ));
         }
 
