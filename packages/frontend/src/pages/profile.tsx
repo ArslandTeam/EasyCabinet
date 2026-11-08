@@ -12,6 +12,7 @@ export default function Profile() {
   useAuthMiddleware();
   const { isAuthed, isLoaded, profile, fetchProfile, logoutSuccess } = useAuth();
   const [skinType, setSkinType] = useState<boolean>(false);
+  const [discordLink, setDiscordLink] = useState<boolean>(!!profile?.discord_link);
   const skinViewer = useRef<SkinViewer | null>(null);
   const skinCanvas = useRef<HTMLCanvasElement>(null);
   const navigate = useNavigate();
@@ -19,6 +20,11 @@ export default function Profile() {
   useEffect(() => {
     if (isLoaded && isAuthed && !profile) {
       fetchProfile();
+    }
+    if (profile) {
+      setDiscordLink(!!profile.discord_link);
+    } else {
+      setDiscordLink(false);
     }
   }, [isLoaded, isAuthed, profile, fetchProfile]);
 
@@ -44,8 +50,12 @@ export default function Profile() {
   };
 
   const doUnlinkDiscord = async () => {
+
     if (await unlinkDiscord()) {
+      setDiscordLink(false);
       fetchProfile();
+    } else {
+      setDiscordLink(true);
     }
   };
 
@@ -208,9 +218,9 @@ export default function Profile() {
             Загрузить плащ
           </label>
         </div>
-        <button className="px-4 py-2 mt-4 bg-primary hover:bg-primary-hover transition-colors rounded-lg save-button md:mr-3">
+        <SubmitButton pendingText="Сохранение..." style="px-4 py-2 mt-4 bg-primary hover:bg-primary-hover transition-colors rounded-lg save-button md:mr-3">
           Сохранить изменения
-        </button>
+        </SubmitButton>
       </form>
 
       <div className="flex flex-col items-center p-3 rounded-sm max-w-87.5 border border-stone-700">
@@ -269,7 +279,7 @@ export default function Profile() {
           </div>
         </form>
       </div>*/}
-      {profile?.discord_link ? (
+      {discordLink ? (
         <button
           type="button"
           onClick={() => { doUnlinkDiscord() }}
