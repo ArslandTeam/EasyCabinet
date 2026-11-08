@@ -11,7 +11,9 @@ pub struct Model {
     pub email: String,
     #[sea_orm(unique)]
     pub login: String,
-    pub password: String,
+    pub password: Option<String>,
+    #[sea_orm(column_name = "discordId")]
+    pub discord_id: Option<String>,
     #[sea_orm(column_name = "accessToken")]
     pub access_token: Option<String>,
     #[sea_orm(column_name = "serverId")]

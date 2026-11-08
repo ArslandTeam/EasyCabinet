@@ -1,16 +1,24 @@
 import { axios, handleError, success } from "../lib";
 
 // TODO если не прошёл запрос (выдала к примеру ошибку not found access token), то вызываем refresh
+
 export interface Profile {
   login: string;
+  discord_link: boolean;
   textures: Textures;
-  sessions: string[];
+  sessions: Session[];
 }
 
 interface Textures {
   is_alex: boolean;
   skin_url?: string;
   cape_url?: string;
+}
+
+export interface Session {
+  id: string;
+  current: boolean;
+  user_agent: string;
 }
 
 export async function getProfile(): Promise<Profile | null> {
@@ -54,5 +62,16 @@ export async function editEmail(email: string, code: number) {
   } catch (error) {
     handleError(error);
     return false;
+  }
+}
+
+export async function unlinkDiscord() {
+  try {
+    await axios.get("users/unlink/discord")
+    success("Discord unlink")
+    return true;
+  } catch (error) {
+    handleError(error)
+    return false
   }
 }

@@ -1,10 +1,5 @@
-use crate::{
-    AppState, BackendError, ValidatedJson,
-    api::{
-        auth,
-        user::{dto, service::UserService},
-    },
-};
+use super::{dto::*, service::*};
+use crate::{AppState, BackendError, ValidatedJson, api::auth::service::JwtPayload};
 use axum::{
     Extension, Json,
     body::Bytes,
@@ -13,12 +8,12 @@ use axum::{
     response::IntoResponse,
 };
 
-pub struct UserControler;
+pub struct UserController;
 
-impl UserControler {
+impl UserController {
     pub async fn get_profile(
         State(state): State<AppState>,
-        Extension(payload): Extension<auth::jwt::JwtPayload>,
+        Extension(payload): Extension<JwtPayload>,
     ) -> Result<impl IntoResponse, BackendError> {
         let profile = UserService::get_profile(
             &state.db,
@@ -33,7 +28,7 @@ impl UserControler {
 
     pub async fn update_profile(
         State(state): State<AppState>,
-        Extension(payload): Extension<auth::jwt::JwtPayload>,
+        Extension(payload): Extension<JwtPayload>,
         mut multipart: Multipart,
     ) -> Result<impl IntoResponse, BackendError> {
         let mut is_alex = false;
@@ -68,17 +63,15 @@ impl UserControler {
             }
         }
 
-        let profile = dto::RequestProfileDTO {
-            is_alex,
-            del_cape,
-            del_skin,
-        };
-
         UserService::update_profile(
             &state.db,
             &state.storage,
             payload,
-            profile,
+            RequestProfileDTO {
+                is_alex,
+                del_skin,
+                del_cape,
+            },
             skin.as_deref(),
             cape.as_deref(),
         )
@@ -89,8 +82,8 @@ impl UserControler {
 
     pub async fn change_password(
         State(state): State<AppState>,
-        Extension(jwt): Extension<auth::jwt::JwtPayload>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestChangePassword>,
+        Extension(jwt): Extension<JwtPayload>,
+        ValidatedJson(payload): ValidatedJson<RequestChangePassword>,
     ) -> Result<impl IntoResponse, BackendError> {
         UserService::change_password(
             &state.db,
@@ -106,8 +99,8 @@ impl UserControler {
 
     pub async fn change_email(
         State(state): State<AppState>,
-        Extension(jwt): Extension<auth::jwt::JwtPayload>,
-        ValidatedJson(payload): ValidatedJson<dto::RequestChangeEmail>,
+        Extension(jwt): Extension<JwtPayload>,
+        ValidatedJson(payload): ValidatedJson<RequestChangeEmail>,
     ) -> Result<impl IntoResponse, BackendError> {
         UserService::change_email(&state.db, &state.cache, &jwt.uuid, payload).await?;
 

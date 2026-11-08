@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: var(--color-blue-500);
+  --color-primary-hover: var(--color-blue-600);
+}
+
 body {
   font-family: Inter, sans-serif;
   font-weight: 300;
@@ -19,7 +24,7 @@ a {
 }
 
 a:hover {
-  @apply text-blue-500;
+  color: var(--color-primary);
 }
 
 button {
@@ -27,7 +32,7 @@ button {
 }
 
 form input {
-  border: 1px oklch(37.1% 0 none) solid;
+  border: 1px var(--color-zinc-700) solid;
   outline: none;
   border-radius: 8px;
   padding: 8px;

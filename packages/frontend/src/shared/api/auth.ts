@@ -1,5 +1,9 @@
 import { axios, handleError } from "../lib";
 
+export const DISCORD_AUTH = `${import.meta.env.VITE_API_URL}/auth/discord`
+export const DISCORD_LINK = `${import.meta.env.VITE_API_URL}/users/connections/discord`
+
+
 export async function register(
   email: string,
   login: string,
@@ -62,9 +66,7 @@ export async function changePassword(reset_token: string, password: string) {
 
 export async function refresh() {
   try {
-    await axios.post("auth/refresh", null, {
-      withCredentials: true,
-    });
+    await axios.post("auth/refresh", null);
     return true;
   } catch {
     return false;
@@ -73,7 +75,7 @@ export async function refresh() {
 
 export async function logout() {
   try {
-    await axios.post("auth/logout", null, { withCredentials: true });
+    await axios.post("auth/logout", null);
   } catch {
     // do nothing
   }
@@ -81,8 +83,18 @@ export async function logout() {
 
 export async function logout_all() {
   try {
-    await axios.post("auth/logout_all", null, { withCredentials: true });
+    await axios.post("auth/logout_all", null);
   } catch {
     // do nothing
+  }
+}
+
+export async function revokeSession(session_id: string) {
+  try {
+    await axios.post("auth/revoke_session", { session_id });
+    return true;
+  } catch (error) {
+    handleError(error);
+    return false;
   }
 }
