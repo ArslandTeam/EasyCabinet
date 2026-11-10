@@ -113,7 +113,7 @@ impl OAuth2Controller {
             .await
             .map_err(|e| BackendError::InternalError(e.into()))?;
 
-        let token_data: DiscordTokenResponse = serde_json::from_slice(&body_bytes)
+        let token_data = serde_json::from_slice::<DiscordTokenResponse>(&body_bytes)
             .map_err(|e| BackendError::InternalError(e.into()))?;
 
         let user_req = Request::builder()
@@ -133,48 +133,20 @@ impl OAuth2Controller {
             .map_err(|e| BackendError::InternalError(e.into()))?;
 
         if !res.status().is_success() {
-            return Err(BackendError::InternalError("".into()));
+            return Err(BackendError::InternalError(
+                format!("Discord returned error status: {}", res.status()).into(),
+            ));
         }
 
         let body_bytes = axum::body::to_bytes(Body::new(res.into_body()), usize::MAX)
             .await
             .map_err(|e| BackendError::InternalError(e.into()))?;
 
-        let user_data: DiscordUserResponse = serde_json::from_slice(&body_bytes)
+        let user_data = serde_json::from_slice::<DiscordUserResponse>(&body_bytes)
             .map_err(|e| BackendError::InternalError(e.into()))?;
 
         if action == "link" {
             OAuth2Service::link_discord(&state.db, &state.cache, &user_data.id, csrf_token).await?;
-
-            // easy discord bot
-            if let Some(ref token) = CONFIG.easy_discord_bot_token {
-                let bot_url = format!(
-                    "{}/verify?user_id={}",
-                    CONFIG.easy_discord_bot_address.as_deref().unwrap(), // no safe
-                    user_data.id
-                );
-
-                let bot_req = Request::builder()
-                    .method(Method::GET)
-                    .uri(&bot_url)
-                    .header("X-Authentication-Token", token)
-                    .body(Body::empty())
-                    .map_err(|e| BackendError::InternalError(e.into()))?;
-
-                let bot_res = state
-                    .http_client
-                    .request(bot_req)
-                    .await
-                    .map_err(|e| BackendError::InternalError(e.into()))?;
-
-                if !bot_res.status().is_success() {
-                    tracing::error!(
-                        "bot failed to assign role for discord_id {}. Status: {}",
-                        user_data.id,
-                        bot_res.status()
-                    )
-                }
-            }
 
             return Ok((
                 jar,
@@ -182,11 +154,40 @@ impl OAuth2Controller {
             ));
         }
 
-        let Some(email) = user_data.email.as_deref() else {
-            return Err(BackendError::BadRequest(
-                "Email not set in Discord account".into(),
-            ));
-        };
+        let email = user_data
+            .email
+            .as_deref()
+            .ok_or_else(|| BackendError::BadRequest("Email not set in Discord account".into()))?;
+
+        // easy discord bot
+        if let Some(ref token) = CONFIG.easy_discord_bot_token {
+            let bot_url = format!(
+                "{}/verify?user_id={}",
+                CONFIG.easy_discord_bot_address.as_deref().unwrap(), // no safe
+                user_data.id
+            );
+
+            let bot_req = Request::builder()
+                .method(Method::GET)
+                .uri(&bot_url)
+                .header("X-Authentication-Token", token)
+                .body(Body::empty())
+                .map_err(|e| BackendError::InternalError(e.into()))?;
+
+            let bot_res = state
+                .http_client
+                .request(bot_req)
+                .await
+                .map_err(|e| BackendError::InternalError(e.into()))?;
+
+            if !bot_res.status().is_success() {
+                tracing::error!(
+                    "bot failed to assign role for discord_id {}. Status: {}",
+                    user_data.id,
+                    bot_res.status()
+                )
+            }
+        }
 
         let (access_token, refresh_token) = OAuth2Service::create_user_discord(
             &state.db,
